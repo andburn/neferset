@@ -16,13 +16,15 @@ Vagrant.configure("2") do |config|
 	
 	config.vm.provision "shell", privileged: false, inline: <<-USER
 		PROJECT_DIR="/neferset"
-		echo "alias python=python3" >> "$HOME/.bashrc"
-		echo "alias pip=pip3" >> "$HOME/.bashrc"
-		echo "cd $PROJECT_DIR" >> "$HOME/.bashrc"
-		
+		cat <<-EOF >> "$HOME/.bashrc"
+			alias python=python3
+			alias pip=pip3
+			cd $PROJECT_DIR
+		EOF
+
 		mkdir -p "$HOME/.config/fontconfig"
 		mkdir -p "$HOME/fonts/cache"
-		
+
 		cat <<-EOF > "$HOME/.config/fontconfig/fonts.conf"
 			<?xml version="1.0"?>
 			<!DOCTYPE fontconfig SYSTEM "fonts.dtd">
