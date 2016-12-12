@@ -19,13 +19,15 @@ def text_path(context, font, size, text, debug=False):
 	pg_layout.set_text(text, -1) # force length calculation
 
 	PangoCairo.update_layout(context, pg_layout)
+	# TODO watch out for ink & logical, need check
+	extents = pg_layout.get_pixel_extents()[0]
+	# TODO debug necessary?
 	if debug:
+		context.set_source_rgb(0, 0, 0)
 		PangoCairo.show_layout(context, pg_layout)
-		pg_size = pg_layout.get_pixel_size()
-		pext = pg_layout.get_pixel_extents()[0]
-		print("text_path: {0} x {1} ({2}, {3}, {4}, {5})".format(
-			pg_size[0], pg_size[1], pext.x, pext.y, pext.width, pext.height))
-		context.rectangle(pext.x, pext.y, pext.width, pext.height)
+		print("text_path: ({0}, {1}, {2}, {3})".format(
+			extents.x, extents.y, extents.width, extents.height))
+		context.rectangle(extents.x, extents.y, extents.width, extents.height)
 		context.set_line_width(1.0)
 		context.set_line_join(cairo.LINE_JOIN_MITER)
 		context.set_source_rgb(0, 0.8, 0)
@@ -33,8 +35,10 @@ def text_path(context, font, size, text, debug=False):
 
 	PangoCairo.layout_path(context, pg_layout)
 	path = context.copy_path()
+	# clear the path
+	context.new_path()
 	context.restore()
-	return path
+	return (path, extents)
 
 
 def path_with_control_points(context, preserve=False):

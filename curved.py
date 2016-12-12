@@ -1,4 +1,7 @@
+import sys
 import math
+import cairo
+import drawing
 
 
 class Point:
@@ -39,7 +42,17 @@ class Point:
 
 
 class CubicBezier:
-	def __init__(self, p0, p1, p2, p3):
+	def __init__(self, *args):
+		if len(args) == 8:
+			self._from_coords(*args)
+		elif len(args) == 4:
+			self._from_points(*args)
+		else:
+			raise ValueError("Wrong number of arguments")
+		self._arc_lengths = []
+		self._length = 0
+
+	def _from_points(self, p0, p1, p2, p3):
 		self.p0 = p0
 		self.p1 = p1
 		self.p2 = p2
@@ -48,8 +61,9 @@ class CubicBezier:
 		self.b, self.f = 3 * p2 - 6 * p1 + 3 * p0
 		self.c, self.g = 3 * p1 - 3 * p0
 		self.d, self.h = p0
-		self._arc_lengths = []
-		self._length = 0
+
+	def _from_coords(self, x0, y0, x1, y1, x2, y2, x3, y3):
+		self._from_points(Point(x0, y0), Point(x1, y1), Point(x2, y2), Point(x3, y3))
 
 	@property
 	def arc_lengths(self):
@@ -67,6 +81,34 @@ class CubicBezier:
 		return Point(
 			self.a * t ** 3 + self.b * t ** 2 + self.c * t + self.d,
 		 	self.e * t ** 3 + self.f * t ** 2 + self.g * t + self.h)
+
+	def tangent(self, t):
+		return Point(
+			3 * self.a * t ** 2 + 2 * self.b * t + self.c,
+			3 * self.e * t ** 2 + 2 * self.f * t + self.g)
+
+	def parametrize(self, u):
+		table_len = len(self.arc_lengths)
+		target_len = u * self.arc_lengths[table_len - 1]
+		index, best = 0, 0
+		# TODO could make this faster search, binary
+		for i, v in enumerate(self.arc_lengths):
+			if i >= table_len - 1:
+				break
+			if v < target_len and v > best:
+				best = v
+				index = i
+
+		if self.arc_lengths[index] == target_len:
+			t = index / (table_len - 1)
+		else:
+			lb = self.arc_lengths[index]
+			la = self.arc_lengths[index + 1]
+			seg_len = la - lb
+			seg_frac = (target_len - lb) / seg_len
+			t = (index + seg_frac) / (table_len - 1)
+
+		return t
 
 	def estimate_length(self, segments=100):
 		max = segments + 1
@@ -88,29 +130,132 @@ class CubicBezier:
 			self.__class__.__name__, self.p0, self.p1, self.p2, self.p3)
 
 
-class TextCurve(object):
-	def __init__(self, start, c1, c2, end):
-		self.bezier = CubicBezier(start, c1, c2, end)
+class CurvedText:
+	def __init__(self, bezier, font, size, text):
+		self.curve = bezier
+		self.font = font
+		self.size = size
+		self.text = text
+
+	def draw_curve(self, context):
+		context.save()
+		context.move_to(self.curve.p0.x, self.curve.p0.y)
+		context.curve_to(self.curve.p1.x, self.curve.p1.y,
+			self.curve.p2.x, self.curve.p2.y, self.curve.p3.x, self.curve.p3.y)
+		context.set_line_width(2.0)
+		context.set_source_rgb(1, 0, 0)
+		context.stroke()
+		context.restore()
+
+	def draw(self, context):
+		context.save()
+
+		# reduce the font size, until its <= the curve length
+		# TODO could use some estimate to speed this up
+		size_step = 1
+		size = self.size
+		while True:
+			path, extents = drawing.text_path(context, self.font, size, self.text)
+			if extents.width > self.curve.length:
+				size -= size_step
+			else:
+				break
+
+		width = extents.width
+		context.new_path()
+		for ptype, pts in path:
+			if ptype == cairo.PATH_MOVE_TO:
+				x, y = self._fit(width, pts[0], pts[1])
+				context.move_to(x, y)
+			elif ptype == cairo.PATH_LINE_TO:
+				x, y = self._fit(width, pts[0], pts[1])
+				context.line_to(x,y)
+			elif ptype == cairo.PATH_CURVE_TO:
+				x, y = self._fit(width, pts[0], pts[1])
+				u, v = self._fit(width, pts[2], pts[3])
+				s, t = self._fit(width, pts[4], pts[5])
+				context.curve_to(x, y, u, v, s, t)
+			elif ptype == cairo.PATH_CLOSE_PATH:
+				context.close_path()
+		context.set_source_rgb(0, 0, 0)
+		context.fill()
+		context.restore()
+
+	def _fit(self, width, x, y):
+		t = self.curve.parametrize(x / width)
+		sx, sy = self.curve.evaluate(t)
+
+		tx, ty = self.curve.tangent(t)
+		px = -ty
+		py = tx
+
+		mag = math.sqrt(px ** 2 + py ** 2)
+		px = px / mag
+		py = py / mag
+
+		px *= y
+		py *= y
+
+		fx = px + sx
+		fy = py + sy
+
+		return (fx, fy)
+
+
+def draw_uniform_t(ctx, num, curve):
+	ctx.save()
+	ctx.set_source_rgb(0.2, 0.8, 0.4)
+	for i in range(1, num):
+		t = i / num
+		sx, sy = curve.evaluate(t)
+		ctx.arc(sx, sy, 2, 0, 2 * math.pi)
+		ctx.fill()
+	for t in (0, 0.5, 1):
+		sx, sy = curve.evaluate(t)
+		ctx.arc(sx, sy, 4, 0, 2 * math.pi)
+		ctx.fill()
+	ctx.restore()
+
+
+def draw_uniform_p(ctx, num, curve):
+	ctx.save()
+	ctx.set_source_rgb(0.2, 0.8, 0.4)
+	for i in range(1, num):
+		u = i / num
+		t = curve.parametrize(u)
+		sx, sy = curve.evaluate(t)
+		ctx.arc(sx, sy, 2, 0, 2 * math.pi)
+		ctx.fill()
+	for u in (0, 0.5, 1):
+		t = curve.parametrize(u)
+		sx, sy = curve.evaluate(t)
+		ctx.arc(sx, sy, 4, 0, 2 * math.pi)
+		ctx.fill()
+	ctx.restore()
 
 
 def main():
-	p1 = Point(2, 4)
-	p2 = Point(0.3, -1.9)
-	print(p1)
-	print(p2)
-	print(p1 + p2)
-	print(p1 - p2)
-	print(p1 * 3)
-	print(p2 * 0.21)
-	print(p1.distance(p2))
-	cb = CubicBezier(p1, p1*2, p1*3, p2)
-	print(cb)
-	tt = cb.evaluate(0.3)
-	print(tt)
-	print(cb.length)
-	print(cb.arc_lengths)
-	a, b = p2
-	print("{},{}".format(a,b))
+	WIDTH = 1024
+	HEIGHT = 1024
+
+	title_text = "Sample Text"
+	if len(sys.argv) > 1:
+		title_text = sys.argv[1]
+
+	surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, WIDTH, HEIGHT)
+	ctx = cairo.Context(surface)
+	ctx.set_source_rgb(1, 1, 1)
+	ctx.paint()
+
+	curve = CubicBezier(276, 578, 362, 610, 592, 499, 731, 574)
+	text = CurvedText(curve, "Belwe Bd BT", 50, title_text)
+	text.draw(ctx)
+
+	draw_uniform_p(ctx, 20, curve)
+
+	surface.flush()
+	surface.write_to_png("output.png")
+
 
 if __name__ == "__main__":
 	main()
