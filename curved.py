@@ -177,8 +177,13 @@ class CurvedText:
 				context.curve_to(x, y, u, v, s, t)
 			elif ptype == cairo.PATH_CLOSE_PATH:
 				context.close_path()
+
 		context.set_source_rgb(0, 0, 0)
-		context.fill()
+		# TODO stroke width needs to scale with font size
+		context.set_line_width(6)
+		context.stroke_preserve()
+		context.set_source_rgb(1, 1, 1)
+		context.fill_preserve()
 		context.restore()
 
 	def _fit(self, width, x, y):
