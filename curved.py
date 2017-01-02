@@ -144,7 +144,8 @@ class CurvedText:
 			self.curve.p2.x, self.curve.p2.y, self.curve.p3.x, self.curve.p3.y)
 		context.set_line_width(2.0)
 		context.set_source_rgb(1, 0, 0)
-		context.stroke()
+		#context.stroke()
+		drawing.path_with_control_points(context)
 		context.restore()
 
 	def draw(self, context):
@@ -180,6 +181,8 @@ class CurvedText:
 
 		context.set_source_rgb(0, 0, 0)
 		# TODO stroke width needs to scale with font size
+		context.set_line_cap(cairo.LINE_CAP_ROUND)
+		context.set_line_join(cairo.LINE_JOIN_ROUND)
 		context.set_line_width(6)
 		context.stroke_preserve()
 		context.set_source_rgb(1, 1, 1)

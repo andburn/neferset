@@ -33,7 +33,8 @@ def text_path(context, font, size, text, debug=False):
 		context.set_source_rgb(0, 0.8, 0)
 		context.stroke()
 
-	PangoCairo.layout_path(context, pg_layout)
+	#PangoCairo.layout_path(context, pg_layout)
+	PangoCairo.layout_line_path(context, pg_layout.get_line(0))
 	path = context.copy_path()
 	# clear the path
 	context.new_path()
