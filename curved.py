@@ -163,18 +163,30 @@ class CurvedText:
 				break
 
 		width = extents.width
+		# Centre when shorter than curve length
+		length = self.curve.length
+		if width < length:
+			r = width / float(length)
+			half = r / 2
+			minr = 0.5 - half
+			maxr = 0.5 + half
+			rng = (minr, maxr)
+			print(rng)
+		else:
+			rng = (0, 1)
+
 		context.new_path()
 		for ptype, pts in path:
 			if ptype == cairo.PATH_MOVE_TO:
-				x, y = self._fit(width, pts[0], pts[1])
+				x, y = self._fit(width, pts[0], pts[1], rng)
 				context.move_to(x, y)
 			elif ptype == cairo.PATH_LINE_TO:
-				x, y = self._fit(width, pts[0], pts[1])
+				x, y = self._fit(width, pts[0], pts[1], rng)
 				context.line_to(x,y)
 			elif ptype == cairo.PATH_CURVE_TO:
-				x, y = self._fit(width, pts[0], pts[1])
-				u, v = self._fit(width, pts[2], pts[3])
-				s, t = self._fit(width, pts[4], pts[5])
+				x, y = self._fit(width, pts[0], pts[1], rng)
+				u, v = self._fit(width, pts[2], pts[3], rng)
+				s, t = self._fit(width, pts[4], pts[5], rng)
 				context.curve_to(x, y, u, v, s, t)
 			elif ptype == cairo.PATH_CLOSE_PATH:
 				context.close_path()
@@ -186,11 +198,16 @@ class CurvedText:
 		context.set_line_width(6)
 		context.stroke_preserve()
 		context.set_source_rgb(1, 1, 1)
-		context.fill_preserve()
+		context.fill()
 		context.restore()
 
-	def _fit(self, width, x, y):
-		t = self.curve.parametrize(x / width)
+	def _fit(self, width, x, y, range=(0, 1)):
+		r = x / width
+		nmin, nmax = range
+		nrng = nmax - nmin
+		nt = r * nrng + nmin
+
+		t = self.curve.parametrize(nt)
 		sx, sy = self.curve.evaluate(t)
 
 		tx, ty = self.curve.tangent(t)
@@ -262,7 +279,7 @@ def main():
 	draw_uniform_p(ctx, 20, curve)
 
 	surface.flush()
-	surface.write_to_png("output.png")
+	surface.write_to_png("output/output.png")
 
 
 if __name__ == "__main__":
