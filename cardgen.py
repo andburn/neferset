@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import sys
 import math
 import json
 import os.path
@@ -10,9 +11,10 @@ from gi.repository import Pango
 from gi.repository import PangoCairo
 from curved import CubicBezier, CurvedText
 from hearthstone.cardxml import load
+import custom
 
-assets = "../hearthforge/gaunt/minion/"
-minion = "../hearthforge/gaunt/minion/data.json"
+theme = "../hearthforge/styles/default/"
+dataFilename = "default.json"
 artwork = "./output/artwork/"
 card_xml = "./output/CardDefs.xml"
 
@@ -30,6 +32,7 @@ class ComponentType(Enum):
 	classDecoration = 11
 	base = 12
 	portrait = 13
+	description = powers
 
 
 class ShapeType(Enum):
@@ -112,6 +115,8 @@ class Component:
 		self.clip = Clip(clp) if clp else None
 		crv = data.get("textCurve")
 		self.curve = Curve(crv) if crv else None
+		cstm = data.get("custom")
+		self.custom = cstm if cstm else None
 		self.type = type
 
 	def __str__(self):
@@ -156,7 +161,7 @@ def draw_crosshair(ctx, x, y, length, color=None):
 
 
 def draw_image(ctx, image, key):
-	file_path = os.path.join(assets, image.assets[key])
+	file_path = os.path.join(theme, image.assets[key])
 	if not os.path.isfile(file_path):
 		print("Asset ({}) not found".format(file_path))
 		return
@@ -209,39 +214,13 @@ def draw_box_ellipse(ctx, x, y, width, height):
 
 def draw_rectangle(ctx, x, y, width, height):
 	ctx.save()
-	ctx.translate(x, y)
+	print("clip1: %s %s %s %s" % ctx.clip_extents())
 	ctx.rectangle(x, y, width, height)
 	ctx.set_source_rgb(1, 0, 0)
 	ctx.set_line_width(0.01)
-	#ctx.stroke()
-	print("clip1: %s %s %s %s" % ctx.clip_extents())
-	#ctx.clip()
 	print("clip2: %s %s %s %s" % ctx.clip_extents())
 	ctx.restore() # TODO what effect does this has
 	print("clip3: %s %s %s %s" % ctx.clip_extents())
-
-
-def get_components(json, id):
-	objs = []
-	json["portrait"]["image"] = artwork + id + ".png"
-	json["base"]["image"] = assets + json["base"]["variants"]["neutral"]
-	json["rarity"]["image"] = assets + json["rarity"]["variants"]["legendary"]
-	json["health"]["image"] = assets + json["health"]["image"]
-	json["attack"]["image"] = assets + json["attack"]["image"]
-	json["cost"]["image"] = assets + json["cost"]["image"]
-	json["banner"]["image"] = assets + json["banner"]["image"]
-	json["rarityFrame"]["image"] = assets + json["rarityFrame"]["image"]
-	json["race"]["image"] = assets + json["race"]["image"]
-	objs.append(json["portrait"])
-	objs.append(json["base"])
-	objs.append(json["rarity"])
-	objs.append(json["health"])
-	objs.append(json["attack"])
-	objs.append(json["cost"])
-	objs.append(json["banner"])
-	objs.append(json["rarityFrame"])
-	objs.append(json["race"])
-	return objs
 
 
 def draw_text(ctx, obj, text, debug=False):
@@ -396,65 +375,6 @@ def draw_curved_text(ctx, obj, text):
 	text.draw(ctx)
 
 
-def main():
-	with open(minion) as f:
-		data = json.load(f)
-
-	with open(cards) as f:
-		cards_data = json.load(f)
-
-	WIDTH = data["width"]
-	HEIGHT = data["height"]
-
-	for card in cards_data:
-		components = get_components(data, card["id"])
-
-		surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, WIDTH, HEIGHT)
-		ctx = cairo.Context(surface)
-		#ctx.scale(WIDTH, HEIGHT) # Normalizing the canvas
-		ctx.set_source_rgba(0, 0, 0, 0) # transparent bg
-		ctx.paint()
-
-		components = sorted(components, key=itemgetter("index"))
-		for c in components:
-			if artwork in c["image"]:
-				# clip portrait TODO from data in json
-				draw_box_ellipse(ctx, 154, 78, 332, 450)
-				ctx.clip()
-				print("clip4: %s %s %s %s" % ctx.clip_extents())
-				draw_image(ctx, c)
-				ctx.reset_clip()
-			else:
-				draw_image(ctx, c)
-
-		# add text
-		dbg = True
-		draw_text(ctx, data["text"]["cost"], str(card["cost"]), dbg)
-		draw_text(ctx, data["text"]["health"], str(card["health"]), dbg)
-		draw_text(ctx, data["text"]["attack"], str(card["attack"]), dbg)
-		draw_text(ctx, data["text"]["race"], "Murloc", dbg)
-		draw_powers(ctx, data["text"]["powers"], card["text"], dbg)
-		# add title
-		#ctx.translate(-170, -105)
-		cpts = data["text"]["name"]
-		#curve = CubicBezier(276, 578, 362, 610, 592, 499, 731, 574)
-		curve = CubicBezier(
-			cpts["start"]["x"], cpts["start"]["y"],
-			cpts["controlPoint1"]["x"], cpts["controlPoint1"]["y"],
-			cpts["controlPoint2"]["x"], cpts["controlPoint2"]["y"],
-			cpts["end"]["x"], cpts["end"]["y"])
-		text = CurvedText(curve, "Belwe Bd BT", 30, card["name"])
-		text.draw(ctx)
-		#ctx.new_path()
-		#text.draw_curve(ctx)
-
-		## TEST
-		#tcost = json.loads(data["text"]["cost"], object_hook=as_shape)
-		#print(tcost)
-
-		surface.flush()
-		surface.write_to_png("./output/output.png")
-
 def render_component(context, component, data):
 	print(component.type)
 	# first check if there is a clipping region
@@ -477,16 +397,37 @@ def render_component(context, component, data):
 	# draw curved text if any
 	if component.curve and data.text:
 		draw_curved_text(context, component.curve, data.text)
+	# custom handling
+	if component.custom:
+		if hasattr(custom, component.custom["name"]):
+			func = getattr(custom, component.custom["name"])
+			func(context, component)
 
 
-def test():
+def main():
+	# sample card id param
+	card_id = "LOE_076"
+	if len(sys.argv) > 1:
+		card_id = sys.argv[1]
+
 	# load card data
 	db, xml = load(card_xml)
-	card = db["AT_027"]
+	if card_id in db:
+		card = db[card_id]
+	else:
+		print("Unknown card {}".format(card_id))
+		return
 
 	# load theme data
-	with open(minion) as f:
-		data = json.load(f)
+	with open(theme + dataFilename) as f:
+		themeData = json.load(f)
+
+	cardType = card.type.name.lower()
+	if cardType in themeData:
+		data = themeData[cardType]
+	else:
+		print("{} not found".format(cardType))
+		return
 
 	components = []
 	for ct in ComponentType:
@@ -523,6 +464,8 @@ def test():
 			cdata = ComponentData(None, None, card.id + ".png")
 		elif c.type == ComponentType.base:
 			cdata = ComponentData("default")
+		elif c.type == ComponentType.cardSet:
+			cdata = ComponentData(None, card.card_set) # TODO how to add race, full card info - could do it for all.
 
 		if cdata:
 			render_component(ctx, c, cdata)
@@ -531,4 +474,4 @@ def test():
 	surface.flush()
 	surface.write_to_png("./output/output.png")
 
-test()
+main()
