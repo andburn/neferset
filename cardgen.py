@@ -124,10 +124,11 @@ class Component:
 
 
 class ComponentData:
-	def __init__(self, key, text=None, override=None):
+	def __init__(self, key, text=None, override=None, data=None):
 		self.key = key
 		self.text = text
 		self.override = override
+		self.data = data
 
 
 def as_shape(obj):
@@ -401,7 +402,7 @@ def render_component(context, component, data):
 	if component.custom:
 		if hasattr(custom, component.custom["name"]):
 			func = getattr(custom, component.custom["name"])
-			func(context, component)
+			func(context, component, data.data)
 
 
 def main():
@@ -465,7 +466,11 @@ def main():
 		elif c.type == ComponentType.base:
 			cdata = ComponentData("default")
 		elif c.type == ComponentType.cardSet:
-			cdata = ComponentData(None, card.card_set) # TODO how to add race, full card info - could do it for all.
+			# TODO need to rework theme dir here and elsewehre
+			# TODO pass on premium state, taken from input?
+			# TODO card type, can get this from cardxml?
+			cdata = ComponentData(None,
+				data={"card": card, "dir": theme, "premium": False, "cardtype": "minion"})
 
 		if cdata:
 			render_component(ctx, c, cdata)
@@ -474,4 +479,5 @@ def main():
 	surface.flush()
 	surface.write_to_png("./output/output.png")
 
-main()
+if __name__ == "__main__":
+	main()
