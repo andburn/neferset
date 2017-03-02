@@ -108,3 +108,12 @@ def path_with_control_points(context, preserve=False):
 		context.append_path(path)
 
 	context.restore()
+
+
+def draw_image(context, file, x, y):
+	context.save()
+	img = cairo.ImageSurface.create_from_png(file)
+	context.translate(x, y)
+	context.set_source_surface(img)
+	context.paint()
+	context.restore()

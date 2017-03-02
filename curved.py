@@ -2,43 +2,7 @@ import sys
 import math
 import cairo
 import drawing
-
-
-class Point:
-	def __init__(self, x=0, y=0):
-		self.x = x
-		self.y = y
-
-	def __add__(self, p):
-		return Point(self.x + p.x, self.y + p.y)
-
-	def __sub__(self, p):
-		return Point(self.x - p.x, self.y - p.y)
-
-	def __mul__(self, s):
-		return Point(self.x * s, self.y * s)
-
-	def __rmul__(self, s):
-		return Point.__mul__(self, s)
-
-	def __div__(self, s):
-		return Point(self.x / s, self.y / s)
-
-	def distance(self, p):
-		return math.sqrt((p.x - self.x) ** 2 + (p.y - self.y) ** 2)
-
-	def clone(self):
-		return Point(self.x, self.y)
-
-	def __iter__(self):
-		yield self.x
-		yield self.y
-
-	def __str__(self):
-		return "({0:.2f}, {1:.2f})".format(self.x, self.y)
-
-	def __repr__(self):
-		return "{0}({1}, {2})".format(self.__class__.__name__, self.x, self.y)
+from geometry import Point
 
 
 class CubicBezier:

@@ -1,62 +1,25 @@
-def multiply(t1, t2):
-	a = tuple(i / 255 for i in t1)
-	b = tuple(i / 255 for i in t2)
-	c = (a[0]*b[0], a[1]*b[1], a[2]*b[2], a[3]*b[3])
-	return tuple(int(i * 255) for i in c)
-
-def sub(t1, t2):
-	a = tuple(i / 255 for i in t1)
-	b = tuple(i / 255 for i in t2)
-	c = (a[0]-b[0], a[1]-b[1], a[2]-b[2], a[3]-b[3])
-	return tuple(int(i * 255) for i in c)
-
-def add(t1, t2):
-	a = tuple(i / 255 for i in t1)
-	b = tuple(i / 255 for i in t2)
-	c = (a[0]+b[0], a[1]+b[1], a[2]+b[2], a[3]+b[3])
-	return tuple(int(i * 255) for i in c)
-
-def scalar(t1, s):
-	x = tuple((i / 255) * s for i in t1)
-	return tuple(int(i * 255) for i in x)
-
-def multiply2(b, f):
-	b = tuple(i / 255 for i in b)
-	x = (b[0] * f[0], b[1] * f[1], b[2] * f[2], b[3] * f[3])
-	return tuple(int(i * 255) for i in x)
-
-def get_image_name(type, premium, race, set):
-	name = [type]
-	if premium:
-		name.append("_premium")
-	if race:
-		name.append("_race")
-	name.append("_")
-	name.append(set)
-	return "".join(name)
+import component
+from geometry import Vector4
+from drawing import draw_image
 
 
-def draw_image(ctx, file, x, y):
-	import cairo
-	# TODO could have a common draw image in drawing?
-	ctx.save()
-	img = cairo.ImageSurface.create_from_png(file)
-	ctx.translate(x, y)
-	ctx.set_source_surface(img)
-	ctx.paint()
-	ctx.restore()
+def rgb_to_bytes(color):
+	''' Convert from fractional rgb values to a tuple of byte values. '''
+	return tuple(int(round(i * 255)) for i in color)
+
+
+def rgb_from_bytes(color):
+	''' Convert from byte rgb values to a Vector4 of fractional values. '''
+	return Vector4(*[i / 255 for i in color])
 
 
 def set_watermark(ctx, comp, data):
 	''' Create the set watermark that appears on regular Hearthstone cards. '''
-
 	from PIL import Image
 	from os import listdir, makedirs
 	from os.path import isfile, isdir, join
-	import cardgen
 	from hearthstone import enums
 
-	race_offset = -16 # in respect to y coordinate only
 	cache_dir = ".cache" # store generated images here for reuse
 	file_ext = ".png" # set icon file extension
 
@@ -65,6 +28,7 @@ def set_watermark(ctx, comp, data):
 	has_race = card.race != enums.Race.INVALID
 	is_premium = data["premium"]
 	card_type = data["cardtype"]
+	race_offset = comp.custom["raceOffset"] # in respect to y coordinate only
 
 	# do nothing for non-craftable sets
 	if not card.card_set.craftable:
@@ -74,13 +38,20 @@ def set_watermark(ctx, comp, data):
 	if not isdir(cache_dir):
 		makedirs(cache_dir)
 
-	# get the name for the generate image
-	image_name = get_image_name(card_type, is_premium, has_race, set_name)
+	# set the name for the generate image
+	name = [card_type]
+	if is_premium:
+		name.append("_premium")
+	if has_race:
+		name.append("_race")
+	name.append("_")
+	name.append(set_name)
+	image_name = "".join(name)
 	image_path = join(cache_dir, "{}{}".format(image_name, file_ext))
 
 	# load the data
-	base_image = cardgen.Image(comp.custom["image"])
-	set_region = cardgen.Region(
+	base_image = component.Image(comp.custom["image"])
+	set_region = component.Region(
 		comp.custom["region"]["x"],
 		comp.custom["region"]["y"],
 		comp.custom["region"]["width"],
@@ -115,41 +86,40 @@ def set_watermark(ctx, comp, data):
 	set_org.close()
 	set_resize.close()
 
-	# open base image
-	base_img = Image.open(join(theme_dir, base_image.assets["default"]))
+	# open the base image
+	descp_img = Image.open(join(theme_dir, base_image.assets["default"]))
 
-	# do the blend
-	zero_p_five = (0.15, 0.15, 0.15, 0.15)
+	# get the blending attributes
 	intensity = comp.custom["blendIntensity"]
-	# TODO better tint rep in json
 	tint = comp.custom["tint"][card_type]
-	tint = (tint["r"], tint["g"], tint["b"], tint["a"])
+	tint = Vector4(tint["r"], tint["g"], tint["b"], tint["a"])
 	r0_data = set_img.getdata()
-	r1_data = base_img.getdata()
+	r1_data = descp_img.getdata()
 
-	# TODO not really necessary now
-	if len(r0_data) != base_img.width * base_img.height and len(r0_data) != len(r1_data):
-		print("ERROR: data size mismatch")
+	# check nothing strange happened
+	assert len(r0_data) == descp_img.width * descp_img.height, "data size mismatch"
 
 	out_data = []
+	# run the blending algorithm on each pixel pair
 	for i in range(len(r0_data)):
-		r0 = r0_data[i]
-		r1 = r1_data[i]
-		if r0[3] == 0: # TODO ignore fully transparent pixels on set?
-			out_data.append(r1)
+		r0 = rgb_from_bytes(r0_data[i])
+		r1 = rgb_from_bytes(r1_data[i])
+		# speed up by ignoring fully transparent pixels on the set icon
+		if r0.a == 0:
+			out_data.append(rgb_to_bytes(r1))
 			continue
-		r0 = scalar(multiply2(r0, tint), intensity)
-		r2 = sub(multiply(r1, r0), r1)
-		r0 = add(scalar(r2, r0[3] / 255), r1)
-		r0 = (r0[0], r0[1], r0[2], 255)
-		out_data.append(r0)
+		r0 = r0 * tint * intensity
+		r2 = r1 * r0 - r1
+		r0 = r2 * r0.a + r1
+		r0.a = 1
+		out_data.append(rgb_to_bytes(r0))
 
-	out = Image.new("RGBA", (base_img.width, base_img.height))
+	out = Image.new("RGBA", (descp_img.width, descp_img.height))
 	out.putdata(out_data)
 	out.save(image_path)
 
 	draw_image(ctx, image_path, base_image.x, base_image.y)
 
 	out.close()
-	base_img.close()
+	descp_img.close()
 	set_img.close()
