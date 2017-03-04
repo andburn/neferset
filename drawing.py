@@ -3,6 +3,11 @@ from gi.repository import Pango
 from gi.repository import PangoCairo
 
 
+def xheight(pg_ctx):
+	pg_ctx.set_text("X", -1)
+	return pg_ctx.get_pixel_extents()[0]
+
+
 def text_path(context, font, size, text, debug=False):
 	"""Create a Pango text layout and return it as a Cairo path"""
 
@@ -39,7 +44,7 @@ def text_path(context, font, size, text, debug=False):
 	# clear the path
 	context.new_path()
 	context.restore()
-	return (path, extents)
+	return (path, extents, xheight(pg_layout).height)
 
 
 def path_with_control_points(context, preserve=False):

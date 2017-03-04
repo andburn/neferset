@@ -1,23 +1,23 @@
 import component
 from geometry import Vector4
 from drawing import draw_image
+from os import listdir, makedirs
+from os.path import isfile, isdir, join
 
 
 def rgb_to_bytes(color):
-	''' Convert from fractional rgb values to a tuple of byte values. '''
+	'''Convert from fractional rgb values to a tuple of byte values.'''
 	return tuple(int(round(i * 255)) for i in color)
 
 
 def rgb_from_bytes(color):
-	''' Convert from byte rgb values to a Vector4 of fractional values. '''
+	'''Convert from byte rgb values to a Vector4 of fractional values.'''
 	return Vector4(*[i / 255 for i in color])
 
 
 def set_watermark(ctx, comp, data):
-	''' Create the set watermark that appears on regular Hearthstone cards. '''
+	'''Create the set watermark that appears on regular Hearthstone cards.'''
 	from PIL import Image
-	from os import listdir, makedirs
-	from os.path import isfile, isdir, join
 	from hearthstone import enums
 
 	cache_dir = ".cache" # store generated images here for reuse
@@ -38,7 +38,7 @@ def set_watermark(ctx, comp, data):
 	if not isdir(cache_dir):
 		makedirs(cache_dir)
 
-	# set the name for the generate image
+	# set the name for the generated image
 	name = [card_type]
 	if is_premium:
 		name.append("_premium")

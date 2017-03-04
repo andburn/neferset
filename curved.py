@@ -86,6 +86,11 @@ class CubicBezier:
 			self._arc_lengths.append(sum)
 		return sum
 
+	def offset(self, x, y):
+		'''Offset the curve postion by (x,y) amount'''
+		p = Point(x, y)
+		self._from_points(self.p0 + p, self.p1 + p, self.p2 + p, self.p3 + p)
+
 	def __str__(self):
 		return "{0}t^3 + {1}t^2 + {2}t + {3}".format(self.a, self.b, self.c, self.d)
 
@@ -120,11 +125,15 @@ class CurvedText:
 		size_step = 1
 		size = self.size
 		while True:
-			path, extents = drawing.text_path(context, self.font, size, self.text)
+			path, extents, xheight = drawing.text_path(context, self.font, size, self.text)
 			if extents.width > self.curve.length:
 				size -= size_step
 			else:
 				break
+
+		#drawing.text_path(context, self.font, size, self.text, True)
+		# use the height to adjust the curve so that text in the centre of it
+		self.curve.offset(0, xheight / 2)
 
 		width = extents.width
 		# Centre when shorter than curve length
