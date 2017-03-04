@@ -1,7 +1,9 @@
+import re
 from enum import Enum
 
+
 class ComponentType(Enum):
-	powers = 1
+	description = 1
 	elite = 2
 	health = 3
 	cost = 4
@@ -14,7 +16,6 @@ class ComponentType(Enum):
 	classDecoration = 11
 	base = 12
 	portrait = 13
-	description = powers
 
 
 class ShapeType(Enum):
@@ -38,7 +39,7 @@ class Region:
 class Shape(Region):
 	def __init__(self, type, x, y, width, height):
 		super().__init__(x, y, width, height)
-		self.type = type
+		self.type = ShapeType[data["type"]]
 
 
 class Image(Region):
@@ -58,6 +59,24 @@ class Text(Region):
 		self.height = data["height"]
 
 
+class Font:
+	def __init__(self, data):
+		self.type = data.get("type")
+		self.color = self._get_color(data.get("color"))
+		self.family = data.get("family")
+		self.size = data.get("size")
+		self.outline = self._get_color(data.get("outline"))
+
+	def _get_color(self, hex_color):
+		if not hex_color:
+			return None
+		color_re = re.compile("[0-9A-Fa-f]{2}")
+		values = color_re.findall(hex_color)
+		if len(values) == 0:
+			raise ValueError("Invalid font color {}".format(hex_color))
+		return [int(x, 16) / 255 for x in values]
+
+
 class Clip(Region):
 	def __init__(self, data):
 		self.x = data["x"]
@@ -65,6 +84,7 @@ class Clip(Region):
 		self.width = data["width"]
 		self.height = data["height"]
 		self.type = ShapeType[data["type"]]
+
 
 # TODO use geometry point instead?
 class Point:
@@ -98,8 +118,9 @@ class Component:
 		self.clip = Clip(clp) if clp else None
 		crv = data.get("textCurve")
 		self.curve = Curve(crv) if crv else None
-		cstm = data.get("custom")
-		self.custom = cstm if cstm else None
+		fnt = data.get("font")
+		self.font = Font(fnt) if fnt else None
+		self.custom = data.get("custom")
 		self.type = type
 
 	def __str__(self):
