@@ -15,7 +15,7 @@ from component import (
 	ComponentType, ShapeType, Region, Shape, Image, Text, Clip, Curve,
 	Component, ComponentData
 )
-from hearthstone.enums import (CardType, CardSet, MultiClassGroup)
+from hearthstone.enums import CardType, CardSet, MultiClassGroup, get_localized_name
 
 
 theme = "../hearthforge/styles/default/"
@@ -322,9 +322,13 @@ def main():
 	card_id = "LOE_076"
 	if len(sys.argv) > 1:
 		card_id = sys.argv[1]
+	# locale param
+	locale = "enUS"
+	if len(sys.argv) > 2:
+		locale = sys.argv[2]
 
 	# load card data
-	db, xml = load(card_xml)
+	db, xml = load(card_xml, locale)
 	if card_id in db:
 		card = db[card_id]
 	else:
@@ -362,9 +366,9 @@ def main():
 		elif c.type == ComponentType.rarity and card.rarity.craftable and card.card_set != CardSet.CORE:
 			cdata = ComponentData(card.rarity.name.lower())
 		elif c.type == ComponentType.multiClass and card.multi_class_group != MultiClassGroup.INVALID:
-			cdata = ComponentData(card.multi_class_group.name.lower())
+			cdata = ComponentData(card.multi_class_group.name.lower()) # should use enums
 		elif c.type == ComponentType.classDecoration:
-			cdata = ComponentData(card.card_class.name.lower())
+			cdata = ComponentData(card.card_class.name.lower()) # should use enums
 		elif c.type == ComponentType.cost:
 			cdata = ComponentData("default", str(card.cost))
 		elif c.type == ComponentType.health:
@@ -373,9 +377,7 @@ def main():
 		elif c.type == ComponentType.attack:
 			cdata = ComponentData("default", str(card.atk))
 		elif c.type == ComponentType.race and card.race.visible:
-			race_text = card.race.name
-			race_text = "".join([race_text[:1].upper(), race_text[1:].lower()])
-			cdata = ComponentData("default", race_text)
+			cdata = ComponentData("default", get_localized_name(card.race, locale))
 		elif c.type == ComponentType.portrait:
 			cdata = ComponentData(None, None, card.id + ".png")
 		elif c.type == ComponentType.base:
