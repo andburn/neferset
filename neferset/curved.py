@@ -1,8 +1,8 @@
 import sys
 import math
 import cairo
-import drawing
-from geometry import Point
+from .drawing import path_with_control_points, text_path
+from .geometry import Point
 
 
 class CubicBezier:
@@ -114,7 +114,7 @@ class CurvedText:
 		context.set_line_width(2.0)
 		context.set_source_rgb(1, 0, 0)
 		#context.stroke()
-		drawing.path_with_control_points(context)
+		path_with_control_points(context)
 		context.restore()
 
 	def draw(self, context):
@@ -125,13 +125,13 @@ class CurvedText:
 		size_step = 1
 		size = self.size
 		while True:
-			path, extents, xheight = drawing.text_path(context, self.font, size, self.text)
+			path, extents, xheight = text_path(context, self.font, size, self.text)
 			if extents.width > self.curve.length:
 				size -= size_step
 			else:
 				break
 
-		#drawing.text_path(context, self.font, size, self.text, True)
+		#text_path(context, self.font, size, self.text, True)
 		# use the height to adjust the curve so that text in the centre of it
 		self.curve.offset(0, xheight / 2)
 
@@ -144,7 +144,6 @@ class CurvedText:
 			minr = 0.5 - half
 			maxr = 0.5 + half
 			rng = (minr, maxr)
-			print(rng)
 		else:
 			rng = (0, 1)
 
@@ -231,6 +230,16 @@ def draw_uniform_p(ctx, num, curve):
 		ctx.fill()
 	ctx.restore()
 
+def curved_text(ctx, obj, text, font, debug=False):
+	curve = CubicBezier(
+		obj.start.x, obj.start.y, obj.c1.x, obj.c1.y,
+		obj.c2.x, obj.c2.y, obj.end.x, obj.end.y)
+	text = CurvedText(curve, font.family, font.size, text)
+	if debug:
+		text.draw_curve(ctx)
+	text.draw(ctx)
+	if debug:
+		text.draw_curve(ctx)
 
 def main():
 	WIDTH = 1024

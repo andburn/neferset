@@ -1,6 +1,6 @@
-import component
-from geometry import Vector4
-from drawing import draw_image
+from .component import Image, Region
+from .geometry import Vector4
+from .drawing import draw_png_at
 from os import listdir, makedirs
 from os.path import isfile, isdir, join
 
@@ -17,7 +17,7 @@ def rgb_from_bytes(color):
 
 def set_watermark(ctx, comp, data):
 	'''Create the set watermark that appears on regular Hearthstone cards.'''
-	from PIL import Image
+	from PIL import Image as ImagePIL
 	from hearthstone import enums
 
 	cache_dir = ".cache" # store generated images here for reuse
@@ -50,8 +50,8 @@ def set_watermark(ctx, comp, data):
 	image_path = join(cache_dir, "{}{}".format(image_name, file_ext))
 
 	# load the data
-	base_image = component.Image(comp.custom["image"])
-	set_region = component.Region(
+	base_image = Image(comp.custom["image"])
+	set_region = Region(
 		comp.custom["region"]["x"],
 		comp.custom["region"]["y"],
 		comp.custom["region"]["width"],
@@ -59,7 +59,9 @@ def set_watermark(ctx, comp, data):
 
 	# if there is a cached version of the image use it
 	if isfile(image_path):
-		draw_image(ctx, image_path, base_image.x, base_image.y)
+		draw_png_at(
+			ctx, image_path, base_image.x, base_image.y, base_image.width,
+			base_image.height)
 		return
 
 	# calc set offset within base
@@ -77,9 +79,9 @@ def set_watermark(ctx, comp, data):
 		print("ERROR: set icon missing for {}".format(set_name))
 
 	# resize the set icon to the correct size
-	set_org = Image.open(set_icon_path)
-	set_resize = set_org.resize((set_region.width, set_region.height), Image.BILINEAR)
-	set_img = Image.new("RGBA",
+	set_org = ImagePIL.open(set_icon_path)
+	set_resize = set_org.resize((set_region.width, set_region.height), ImagePIL.BILINEAR)
+	set_img = ImagePIL.new("RGBA",
 		(base_image.width, base_image.height),
 		(0, 0, 0, 0))
 	set_img.paste(set_resize, (offset["x"], offset["y"]))
@@ -87,7 +89,7 @@ def set_watermark(ctx, comp, data):
 	set_resize.close()
 
 	# open the base image
-	descp_img = Image.open(join(theme_dir, base_image.assets["default"]))
+	descp_img = ImagePIL.open(join(theme_dir, base_image.assets["default"]))
 
 	# get the blending attributes
 	intensity = comp.custom["blendIntensity"]
@@ -118,7 +120,9 @@ def set_watermark(ctx, comp, data):
 	out.putdata(out_data)
 	out.save(image_path)
 
-	draw_image(ctx, image_path, base_image.x, base_image.y)
+	draw_png_at(
+		ctx, image_path, base_image.x, base_image.y, base_image.width,
+		base_image.height)
 
 	out.close()
 	descp_img.close()
