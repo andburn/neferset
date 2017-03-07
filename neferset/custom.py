@@ -116,7 +116,7 @@ def set_watermark(ctx, comp, data):
 		r0.a = 1
 		out_data.append(rgb_to_bytes(r0))
 
-	out = Image.new("RGBA", (descp_img.width, descp_img.height))
+	out = ImagePIL.new("RGBA", (descp_img.width, descp_img.height))
 	out.putdata(out_data)
 	out.save(image_path)
 

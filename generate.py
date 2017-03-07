@@ -43,10 +43,7 @@ def draw_clip_region(ctx, obj):
 	if obj.type == ShapeType.ellipse:
 		rect_ellipse(ctx, obj.x, obj.y, obj.width, obj.height)
 	elif obj.type == ShapeType.rectangle:
-		draw_rectangle(ctx, obj.x, obj.y, obj.width, obj.height)
-	# TODO ShapeType.path
-	elif obj.type == ShapeType.path:
-		pass
+		rectangle(ctx, obj.x, obj.y, obj.width, obj.height)
 	elif obj.type == ShapeType.curve:
 		print("ERROR: unable to use a curve as a clipping region")
 
