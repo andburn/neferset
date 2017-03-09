@@ -176,7 +176,7 @@ def main():
 	locale = "enUS"
 	if len(sys.argv) > 2:
 		locale = sys.argv[2]
-	locale_code = locale_as_code(locale)
+	locale_code = locale_as_code(Locale[locale])
 
 	# load card data
 	db, xml = load(card_xml, locale)

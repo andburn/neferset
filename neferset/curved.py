@@ -55,7 +55,7 @@ class CubicBezier:
 		table_len = len(self.arc_lengths)
 		target_len = u * self.arc_lengths[table_len - 1]
 		index, best = 0, 0
-		# TODO could make this faster search, binary
+
 		for i, v in enumerate(self.arc_lengths):
 			if i >= table_len - 1:
 				break
@@ -71,7 +71,6 @@ class CubicBezier:
 			seg_len = la - lb
 			seg_frac = (target_len - lb) / seg_len
 			t = (index + seg_frac) / (table_len - 1)
-
 		return t
 
 	def estimate_length(self, segments=100):
@@ -87,7 +86,7 @@ class CubicBezier:
 		return sum
 
 	def offset(self, x, y):
-		'''Offset the curve postion by (x,y) amount'''
+		"""Offset the curve postion by (x,y) amount"""
 		p = Point(x, y)
 		self._from_points(self.p0 + p, self.p1 + p, self.p2 + p, self.p3 + p)
 
@@ -113,13 +112,11 @@ class CurvedText:
 			self.curve.p2.x, self.curve.p2.y, self.curve.p3.x, self.curve.p3.y)
 		context.set_line_width(2.0)
 		context.set_source_rgb(1, 0, 0)
-		#context.stroke()
 		path_with_control_points(context)
 		context.restore()
 
 	def draw(self, context):
 		context.save()
-
 		# reduce the font size, until its <= the curve length
 		# TODO could use some estimate to speed this up
 		size_step = 1
@@ -131,12 +128,11 @@ class CurvedText:
 			else:
 				break
 
-		#text_path(context, self.font, size, self.text, True)
-		# use the height to adjust the curve so that text in the centre of it
+		# use the height to adjust the curve so that text centered on curve vertically
 		self.curve.offset(0, xheight / 2)
 
 		width = extents.width
-		# Centre when shorter than curve length
+		# Centre text horizontally when shorter than curve length
 		length = self.curve.length
 		if width < length:
 			r = width / float(length)
@@ -164,7 +160,6 @@ class CurvedText:
 				context.close_path()
 
 		context.set_source_rgb(0, 0, 0)
-		# TODO stroke width needs to scale with font size
 		context.set_line_cap(cairo.LINE_CAP_ROUND)
 		context.set_line_join(cairo.LINE_JOIN_ROUND)
 		context.set_line_width(6)
@@ -230,6 +225,7 @@ def draw_uniform_p(ctx, num, curve):
 		ctx.fill()
 	ctx.restore()
 
+
 def curved_text(ctx, obj, text, font, debug=False):
 	curve = CubicBezier(
 		obj.start.x, obj.start.y, obj.c1.x, obj.c1.y,
@@ -240,29 +236,3 @@ def curved_text(ctx, obj, text, font, debug=False):
 	text.draw(ctx)
 	if debug:
 		text.draw_curve(ctx)
-
-def main():
-	WIDTH = 1024
-	HEIGHT = 1024
-
-	title_text = "Sample Text"
-	if len(sys.argv) > 1:
-		title_text = sys.argv[1]
-
-	surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, WIDTH, HEIGHT)
-	ctx = cairo.Context(surface)
-	ctx.set_source_rgb(1, 1, 1)
-	ctx.paint()
-
-	curve = CubicBezier(276, 578, 362, 610, 592, 499, 731, 574)
-	text = CurvedText(curve, "Belwe Bd BT", 50, title_text)
-	text.draw(ctx)
-
-	draw_uniform_p(ctx, 20, curve)
-
-	surface.flush()
-	surface.write_to_png("output/output.png")
-
-
-if __name__ == "__main__":
-	main()

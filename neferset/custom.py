@@ -1,22 +1,22 @@
+import os
+import os.path
 from .component import Image, Region
 from .geometry import Vector4
 from .drawing import draw_png_at
-from os import listdir, makedirs
-from os.path import isfile, isdir, join
 
 
 def rgb_to_bytes(color):
-	'''Convert from fractional rgb values to a tuple of byte values.'''
+	"""Convert from fractional rgb values to a tuple of byte values."""
 	return tuple(int(round(i * 255)) for i in color)
 
 
 def rgb_from_bytes(color):
-	'''Convert from byte rgb values to a Vector4 of fractional values.'''
+	"""Convert from byte rgb values to a Vector4 of fractional values."""
 	return Vector4(*[i / 255 for i in color])
 
 
 def set_watermark(ctx, comp, data):
-	'''Create the set watermark that appears on regular Hearthstone cards.'''
+	"""Create the set watermark that appears on regular Hearthstone cards."""
 	from PIL import Image as ImagePIL
 	from hearthstone import enums
 
@@ -35,8 +35,8 @@ def set_watermark(ctx, comp, data):
 		return
 	set_name = card.card_set.name.lower()
 
-	if not isdir(cache_dir):
-		makedirs(cache_dir)
+	if not os.path.isdir(cache_dir):
+		os.makedir(cache_dir)
 
 	# set the name for the generated image
 	name = [card_type]
@@ -47,7 +47,7 @@ def set_watermark(ctx, comp, data):
 	name.append("_")
 	name.append(set_name)
 	image_name = "".join(name)
-	image_path = join(cache_dir, "{}{}".format(image_name, file_ext))
+	image_path = os.path.join(cache_dir, "{}{}".format(image_name, file_ext))
 
 	# load the data
 	base_image = Image(comp.custom["image"])
@@ -58,7 +58,7 @@ def set_watermark(ctx, comp, data):
 		comp.custom["region"]["height"])
 
 	# if there is a cached version of the image use it
-	if isfile(image_path):
+	if os.path.isfile(image_path):
 		draw_png_at(
 			ctx, image_path, base_image.x, base_image.y, base_image.width,
 			base_image.height)
@@ -74,9 +74,10 @@ def set_watermark(ctx, comp, data):
 		offset["y"] += race_offset
 
 	# check the icon exists for this set
-	set_icon_path = join(theme_dir, comp.custom["setIcons"], "{}{}".format(set_name, file_ext))
-	if not isfile(set_icon_path):
+	set_icon_path = os.path.join(theme_dir, comp.custom["setIcons"], "{}{}".format(set_name, file_ext))
+	if not os.path.isfile(set_icon_path):
 		print("ERROR: set icon missing for {}".format(set_name))
+		return
 
 	# resize the set icon to the correct size
 	set_org = ImagePIL.open(set_icon_path)
@@ -89,7 +90,7 @@ def set_watermark(ctx, comp, data):
 	set_resize.close()
 
 	# open the base image
-	descp_img = ImagePIL.open(join(theme_dir, base_image.assets["default"]))
+	descp_img = ImagePIL.open(os.path.join(theme_dir, base_image.assets["default"]))
 
 	# get the blending attributes
 	intensity = comp.custom["blendIntensity"]
