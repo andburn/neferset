@@ -42,11 +42,15 @@ def as_shape(obj):
 		return obj
 
 
+def locale_as_code(locale):
+	return "{}-{}".format(locale.name[:2], locale.name[2:])
+
+
 def draw_clip_region(ctx, obj):
 	if obj.type == ShapeType.ellipse:
-		rect_ellipse(ctx, obj.x, obj.y, obj.width, obj.height)
+		rect_ellipse(ctx, obj.x, obj.y, obj.width, obj.height, False, 0.01)
 	elif obj.type == ShapeType.rectangle:
-		rectangle(ctx, obj.x, obj.y, obj.width, obj.height)
+		rectangle(ctx, obj.x, obj.y, obj.width, obj.height, False, 0.01)
 	elif obj.type == ShapeType.curve:
 		print("ERROR: unable to use a curve as a clipping region")
 
@@ -172,6 +176,7 @@ def main():
 	locale = "enUS"
 	if len(sys.argv) > 2:
 		locale = sys.argv[2]
+	locale_code = locale_as_code(locale)
 
 	# load card data
 	db, xml = load(card_xml, locale)

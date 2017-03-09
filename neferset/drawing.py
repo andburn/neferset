@@ -133,23 +133,26 @@ def crosshair(ctx, x, y, length, color=None):
 	ctx.restore()
 
 
-def rect_ellipse(ctx, x, y, width, height):
-	'''Draw an ellipse fitting a rectangle'''
-
+def rect_ellipse(ctx, x, y, width, height, draw=True, stroke=0.5, color=(0, 0, 0)):
+	"""Draw an ellipse fitting a rectangle."""
 	ctx.save()
 	ctx.translate(x + width / 2.0, y + height / 2.0)
 	ctx.scale(width / 2.0, height / 2.0)
 	ctx.arc(0, 0, 1, 0, 2 * math.pi)
-	ctx.set_source_rgb(1, 0, 0)
-	ctx.set_line_width(0.01)
+	ctx.set_source_rgb(*color)
+	ctx.set_line_width(stroke)
+	if draw:
+		ctx.stroke()
 	ctx.restore()
 
 
-def rectangle(ctx, x, y, width, height):
+def rectangle(ctx, x, y, width, height, draw=True, stroke=0.5, color=(0, 0, 0)):
 	ctx.save()
 	ctx.rectangle(x, y, width, height)
-	ctx.set_source_rgb(1, 0, 0)
-	ctx.set_line_width(0.01)
+	ctx.set_source_rgb(*color)
+	ctx.set_line_width(stroke)
+	if draw:
+		ctx.stroke()
 	ctx.restore()
 
 
@@ -220,41 +223,34 @@ def text(ctx, obj, text, font, debug=False):
 	ctx.restore()
 
 	if debug:
-		#draw_crosshair(ctx, obj["x"] + obj["width"] / 2, obj["y"] + obj["height"] / 2, 20, (1, 1, 1))
-		draw_crosshair(ctx, obj.x, obj.y, 20, (1, 1, 1))
+		#crosshair(ctx, obj["x"] + obj["width"] / 2, obj["y"] + obj["height"] / 2, 20, (1, 1, 1))
+		crosshair(ctx, obj.x, obj.y, 20, (1, 1, 1))
 
 
-def text_block(ctx, obj, text, font, debug=False):
+def text_block(ctx, obj, text, font, lang="en-US", debug=False):
 	ctx.save()
-
 	lyt = PangoCairo.create_layout(ctx)
 	pg_ctx = lyt.get_context()
-
+	pg_ctx.set_language(Pango.Language.from_string(lang))
 	fo = cairo.FontOptions()
 	fo.set_antialias(cairo.ANTIALIAS_SUBPIXEL)
 	PangoCairo.context_set_font_options(pg_ctx, fo)
 	pg_font = Pango.FontDescription("{} {}px".format(font.family, font.size))
-	# font.set_stretch(Pango.Stretch.ULTRA_EXPANDED)
-	# print(">>>>>", font.get_stretch())
 	lyt.set_font_description(pg_font)
 	lyt.set_markup(text, -1) # force length calculation
-	#lyt.set_markup(
-	#	'<span font_family="sans" font_stretch="expanded" letter_spacing="100" font_weight="bold">SANS</span>', -1)
 
-	lyt.set_height(obj.height * Pango.SCALE * 1.5)
+	lyt.set_height(obj.height * Pango.SCALE * 1.5) # TODO what?
 	lyt.set_width(obj.width * Pango.SCALE)
 	lyt.set_alignment(Pango.Alignment.CENTER)
 	#PangoCairo.update_layout(ctx, lyt)
 
 	pg_size = lyt.get_pixel_size()
 	ink, logical = lyt.get_pixel_extents()
-	if debug:
-		print("pg: %s x %s" % pg_size)
-		print("ink: %s %s %s %s" % (ink.x, ink.y, ink.width, ink.height))
-		print("logical: %s %s %s %s" % (logical.x, logical.y, logical.width, logical.height))
-		print("spacing: %s" % (lyt.get_spacing()))
-		print("height: %s" % (lyt.get_height()))
-		print("width: %s" % (lyt.get_width()))
+
+	while ink.height > obj.height and pg_font.get_size() > 0:
+		pg_font.set_size(pg_font.get_size() - Pango.SCALE)
+		lyt.set_font_description(pg_font)
+		ink, logical = lyt.get_pixel_extents()
 
 	#x = obj["x"] - pext.x - pext.width / 2
 	#y = obj["y"] - pext.y - pext.height / 2
@@ -272,28 +268,14 @@ def text_block(ctx, obj, text, font, debug=False):
 	ctx.set_line_cap(cairo.LINE_CAP_ROUND)
 	ctx.set_line_join(cairo.LINE_JOIN_ROUND)
 	ctx.set_source_rgb(*font.color)
-	#ctx.stroke()
-
-	#ctx.set_source_rgb(1, 1, 1)
 	PangoCairo.show_layout(ctx, lyt)
-	ctx.new_path()
-	if debug:
-		ctx.rectangle(ink.x, ink.y, ink.width, ink.height)
-		ctx.set_line_width(2.0)
-		ctx.set_line_join(cairo.LINE_JOIN_MITER)
-		ctx.set_source_rgb(0, 0.8, 0)
-		ctx.stroke()
-		ctx.rectangle(logical.x, logical.y, logical.width, logical.height)
-		ctx.set_line_width(2.0)
-		ctx.set_line_join(cairo.LINE_JOIN_MITER)
-		ctx.set_source_rgb(0, 0.2, 0.9)
-		ctx.stroke()
 
+	ctx.new_path()
 	ctx.restore()
 
 	if debug:
-		#draw_crosshair(ctx, obj["x"] + obj["width"] / 2, obj["y"] + obj["height"] / 2, 20, (1, 1, 1))
-		draw_crosshair(ctx, obj.x, obj.y, 20, (1, 1, 1))
+		rectangle(ctx, ink.x, ink.y, ink.width, ink.height, True, 2.0, (0, 1, 0))
+		rectangle(ctx, obj.x, obj.y, obj.width, obj.height, True, 2.0, (0.8, 0.8, 0))
 
 
 def get_scale(img, w, h):
