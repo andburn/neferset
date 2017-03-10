@@ -7,6 +7,7 @@ import json
 import os.path
 from operator import itemgetter, attrgetter
 
+import fire
 import cairo
 from gi.repository import Pango
 from gi.repository import PangoCairo
@@ -40,10 +41,6 @@ def as_shape(obj):
 			return Shape(obj["type"], obj["x"], obj["y"], obj["width"], obj["height"])
 	else:
 		return obj
-
-
-def locale_as_code(locale):
-	return "{}-{}".format(locale.name[:2], locale.name[2:])
 
 
 def draw_clip_region(ctx, obj):
@@ -167,34 +164,102 @@ def setup_context(width, height):
 	return (ctx, surface)
 
 
-def main():
-	# sample card id param
-	card_id = "LOE_076"
-	if len(sys.argv) > 1:
-		card_id = sys.argv[1]
-	# locale param
-	locale = "enUS"
-	if len(sys.argv) > 2:
-		locale = sys.argv[2]
-	locale_code = locale_as_code(Locale[locale])
+OUT_DIR = "./out"
+ART_DIR = "./art"
+DB_XML = "./CardDefs.xml"
 
-	# load card data
-	db, xml = load(card_xml, locale)
-	if card_id in db:
-		card = db[card_id]
-	else:
-		print("Unknown card {}".format(card_id))
-		return
+def generate(
+		art_dir=ART_DIR, out_dir=OUT_DIR, id=None, locale="enUS",
+		style="default", premium=False, fonts=None, collectible=False,
+		card_set=None):
+
+	options = {
+		"art_dir": art_dir,
+		"out_dir": out_dir,
+		"id": id,
+		"locale": locale_converter(locale),
+		"style": style,
+		"premium": premium,
+		"fonts": fonts,
+		"collectible": collectible,
+		"set": card_set_converter(card_set),
+	}
+
+	# load cards
+	cards = load_cards(locale, id, options["set"], collectible)
+	print(options)
+	print(len(cards))
 
 	# load theme data
-	with open(theme + dataFilename) as f:
-		themeData = json.load(f)
+	#theme_dir = os.path.join("./assets/", style)
+	theme_dir = os.path.join("../hearthforge/styles/", style)
+	if not os.path.isdir(theme_dir):
+		raise FileNotFoundError("Asset dir not found ({})".format(theme_dir))
+	with open(os.path.join(theme_dir, style + ".json")) as f:
+		theme_data = json.load(f)
+	# render cards
+	for c in cards:
+		render(c, theme_data, locale, out_dir)
 
-	cardType = card.type.name.lower()
-	if cardType in themeData:
-		data = themeData[cardType]
+
+def locale_converter(locale):
+	"""Covnert locale string to hearthstone.enums.Locale."""
+	if locale and len(locale) == 4:
+		return Locale[locale]
+	return Locale.UNKNOWN
+
+
+def locale_as_code(locale):
+	"""Covnert hearthstone.enums.Locale to pango lang code."""
+	return "{}-{}".format(locale.name[:2], locale.name[2:])
+
+
+def card_set_converter(card_set):
+	"""Convert a card set string to a hearthstone.enums.CardSet."""
+	if card_set:
+		# TODO match game string names
+		return CardSet[card_set]
+	return CardSet.INVALID
+
+
+def load_cards(locale, id, card_set, collectible):
+	"""Load card data from XML.
+
+	locale -- the hearthstone.enums.Locale data to load
+	id -- a card id, takes precedence over set and collectible
+	card_set -- restrict generation to a hearthstone.enums.CardSet
+	collectible -- when True only generate collectible cards
+	"""
+	db, xml = load(card_xml, locale)
+	cards = []
+	if id == None:
+		for card in db.values():
+			include = True
+			if collectible:
+				if card.collectible:
+					include = True
+				else:
+					include = False
+			if card_set == card.card_set:
+				include = include and True
+			else:
+				include = include and False
+			if include:
+				cards.append(card)
+	elif id in db:
+		cards.append(db[id])
 	else:
-		print("{} not found".format(cardType))
+		raise ValueError("Unknown card id {}".format(id))
+
+	return cards
+
+
+def render(card, theme_data, locale, out_dir):
+	card_type = card.type.name.lower()
+	if card_type in theme_data:
+		data = theme_data[card_type]
+	else:
+		print("{} not found".format(card_type))
 		return
 
 	components = []
@@ -244,9 +309,8 @@ def main():
 		if cdata:
 			render_component(ctx, c, cdata)
 
-
 	surface.flush()
-	surface.write_to_png("./output/output.png")
+	surface.write_to_png(os.path.join(out_dir, card.id + ".png"))
 
 if __name__ == "__main__":
-	main()
+	fire.Fire(generate)
