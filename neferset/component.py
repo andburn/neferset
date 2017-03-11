@@ -128,8 +128,8 @@ class Component:
 
 
 class ComponentData:
-	def __init__(self, key, text=None, override=None, data=None):
+	def __init__(self, key="default", text=None, override=None, obj=None):
 		self.key = key
 		self.text = text
 		self.override = override
-		self.data = data
+		self.obj = obj

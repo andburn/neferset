@@ -156,11 +156,12 @@ def rectangle(ctx, x, y, width, height, draw=True, stroke=0.5, color=(0, 0, 0)):
 	ctx.restore()
 
 
-def text(ctx, obj, text, font, debug=False):
+def text(ctx, obj, text, font, lang="en-US", debug=False):
 	ctx.save()
 
 	lyt = PangoCairo.create_layout(ctx)
 	pg_ctx = lyt.get_context()
+	pg_ctx.set_language(Pango.Language.from_string(lang))
 
 	fo = cairo.FontOptions()
 	fo.set_antialias(cairo.ANTIALIAS_SUBPIXEL)
@@ -229,9 +230,11 @@ def text(ctx, obj, text, font, debug=False):
 
 def text_block(ctx, obj, text, font, lang="en-US", debug=False):
 	ctx.save()
+
 	lyt = PangoCairo.create_layout(ctx)
 	pg_ctx = lyt.get_context()
 	pg_ctx.set_language(Pango.Language.from_string(lang))
+
 	fo = cairo.FontOptions()
 	fo.set_antialias(cairo.ANTIALIAS_SUBPIXEL)
 	PangoCairo.context_set_font_options(pg_ctx, fo)

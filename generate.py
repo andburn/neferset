@@ -26,11 +26,12 @@ from neferset.component import (
 	Component, ComponentData
 )
 
-
-theme = "../hearthforge/styles/default/"
-dataFilename = "default.json"
-artwork = "./output/artwork/"
-card_xml = "./output/CardDefs.xml"
+OUT_DIR = "./out"
+ART_DIR = "./art"
+ASSET_DIR = "./assets/styles"
+DB_XML = "./hsdata/CardDefs.xml"
+THEME_JSON = "data.json"
+PREM_SUFFIX = "_premium"
 
 
 def as_shape(obj):
@@ -48,40 +49,43 @@ def draw_clip_region(ctx, obj):
 		rect_ellipse(ctx, obj.x, obj.y, obj.width, obj.height, False, 0.01)
 	elif obj.type == ShapeType.rectangle:
 		rectangle(ctx, obj.x, obj.y, obj.width, obj.height, False, 0.01)
-	elif obj.type == ShapeType.curve:
-		print("ERROR: unable to use a curve as a clipping region")
+	else:
+		raise ValueError("Unable to use a {} as a clipping region.".format(obj.type.name))
 
 
 
-def render_component(context, component, data):
+def render_component(context, art_dir, theme_dir, loc_code, component, data):
+	clipped = False
 	# first check if there is a clipping region
 	if component.clip:
-		# TODO get shape type
 		draw_clip_region(context, component.clip)
 		context.clip()
+		clipped = True
 	# draw image
 	if component.image and data.override:
-		draw_png_asset(context, component.image, artwork, data.override)
-		# reset the clip TODO maybe only when actually clipped
-		context.reset_clip()
+		draw_png_asset(context, component.image, art_dir, data.override)
+		if clipped:
+			context.reset_clip()
+			clipped = False
 	elif component.image and data.key in component.image.assets:
-		draw_png_asset(context, component.image, theme, data.key)
-		# reset the clip TODO maybe only when actually clipped
-		context.reset_clip()
-	# draw text next
+		draw_png_asset(context, component.image, theme_dir, data.key)
+		if clipped:
+			context.reset_clip()
+			clipped = False
+	# draw text
 	if component.text and component.font and data.text:
 		if component.font.type == "textBlock":
-			text_block(context, component.text, data.text, component.font)
+			text_block(context, component.text, data.text, component.font, loc_code)
 		else:
-			text(context, component.text, data.text, component.font)
+			text(context, component.text, data.text, component.font, loc_code)
 	# draw curved text if any
 	if component.curve and component.font and data.text:
 		curved_text(context, component.curve, data.text, component.font)
-	# custom handling
+	# custom handling, use named function of custom module
 	if component.custom:
 		if hasattr(neferset.custom, component.custom["name"]):
 			func = getattr(neferset.custom, component.custom["name"])
-			func(context, component, data.data)
+			func(context, component, data.obj)
 
 
 def plural_index(num, locale):
@@ -162,30 +166,30 @@ def setup_context(width, height):
 	return (ctx, surface)
 
 
-OUT_DIR = "./out"
-ART_DIR = "./art"
-DB_XML = "./CardDefs.xml"
-THEME_JSON = "data.json"
-
 def generate(
 		art_dir=ART_DIR, out_dir=OUT_DIR, id=None, locale="enUS",
 		style="default", premium=False, fonts=None, collectible=False,
 		card_set=None):
-	print(locals())
 	loc = locale_converter(locale)
+	loc_code = locale_as_code(loc)
 	# load cards
 	cards = load_cards(locale, id, card_set_converter(card_set), collectible)
-	print(len(cards))
-	print(loc, locale, card_set_converter(card_set))
-	# load theme data
-	theme_dir = os.path.join("../hearthforge/styles/", style) # TODO os.path.join("./assets/", style)
+	print("Generating {} cards".format(len(cards)))
+	# load theme data, from hearthforge submodule
+	theme_dir = os.path.join(ASSET_DIR, style)
 	if not os.path.isdir(theme_dir):
 		raise FileNotFoundError("Asset dir not found ({})".format(theme_dir))
 	with open(os.path.join(theme_dir, THEME_JSON)) as f:
 		theme_data = json.load(f)
-	# render cards
+	# render cards, the standard card first then the premium if required
+	import time
+	st = time.process_time()
 	for c in cards:
-		render(c, loc, premium, theme_data, theme_dir, art_dir, out_dir)
+		render(c, loc, loc_code, False, theme_data, theme_dir, art_dir, out_dir)
+		if premium:
+			render(c, loc, loc_code, True, theme_data, theme_dir, art_dir, out_dir)
+	ed = time.process_time()
+	print(ed - st)
 
 
 def locale_converter(locale_str):
@@ -223,7 +227,7 @@ def load_cards(locale_str, id, card_set, collectible):
 	card_set -- restrict generation to a hearthstone.enums.CardSet
 	collectible -- when True only generate collectible cards
 	"""
-	db, xml = load(card_xml, locale_str)
+	db, xml = load(DB_XML, locale_str)
 	cards = []
 	if id == None:
 		for card in db.values():
@@ -247,14 +251,17 @@ def load_cards(locale_str, id, card_set, collectible):
 	return cards
 
 
-def render(card, locale, premium, theme_data, theme_dir, art_dir, out_dir):
+def render(card, locale, loc_code, premium, theme_data, theme_dir, art_dir, out_dir):
 	card_type = card.type.name.lower()
+	if premium:
+		card_type += PREM_SUFFIX
 	if card_type in theme_data:
 		data = theme_data[card_type]
 	else:
-		print("'{}' is unsupported in '{}'".format(card_type, theme_data["name"]))
+		print("{} : '{}' is unsupported in '{}' theme".format(
+			card.id, card_type, theme_data["name"]))
 		return
-
+	# sort the components by the layer attribute
 	components = []
 	for ct in ComponentType:
 		obj = data.get(ct.name)
@@ -264,46 +271,60 @@ def render(card, locale, premium, theme_data, theme_dir, art_dir, out_dir):
 	components.sort(key=attrgetter("layer"))
 
 	ctx, surface = setup_context(data["width"], data["height"])
+	rendered_comps = 0
 
 	for c in components:
 		cdata = None
-		# TODO improve this somehow
+		# match each component to a known type
 		if c.type == ComponentType.name:
-			cdata = ComponentData("default", card.name)
+			cdata = ComponentData(text=card.name)
 		elif c.type == ComponentType.elite and card.elite:
-			cdata = ComponentData("default")
-		elif c.type == ComponentType.rarity and card.rarity.craftable and card.card_set != CardSet.CORE:
+			cdata = ComponentData()
+		elif (c.type == ComponentType.rarity
+				and card.rarity.craftable
+				and card.card_set != CardSet.CORE):
 			cdata = ComponentData(card.rarity.name.lower())
-		elif c.type == ComponentType.multiClass and card.multi_class_group != MultiClassGroup.INVALID:
-			cdata = ComponentData(card.multi_class_group.name.lower()) # should use enums
+		elif (c.type == ComponentType.multiClass
+				and card.multi_class_group != MultiClassGroup.INVALID):
+			cdata = ComponentData(card.multi_class_group.name.lower())
 		elif c.type == ComponentType.classDecoration:
-			cdata = ComponentData(card.card_class.name.lower()) # should use enums
+			cdata = ComponentData(card.card_class.name.lower())
 		elif c.type == ComponentType.cost:
-			cdata = ComponentData("default", str(card.cost))
+			cdata = ComponentData(text=str(card.cost))
 		elif c.type == ComponentType.health:
-			health = str(card.durability) if card.type == CardType.WEAPON else str(card.health)
-			cdata = ComponentData("default", health)
+			health = str(card.health)
+			if card.type == CardType.WEAPON:
+				health = str(card.durability)
+			cdata = ComponentData(text=health)
 		elif c.type == ComponentType.attack:
-			cdata = ComponentData("default", str(card.atk))
+			cdata = ComponentData(text=str(card.atk))
 		elif c.type == ComponentType.race and card.race.visible:
-			cdata = ComponentData("default", get_localized_name(card.race, locale.name))
+			cdata = ComponentData(text=get_localized_name(card.race, locale.name))
 		elif c.type == ComponentType.portrait:
 			cdata = ComponentData(None, None, card.id + ".png")
 		elif c.type == ComponentType.base:
-			cdata = ComponentData("default")
+			cdata = ComponentData()
 		elif c.type == ComponentType.description:
-			cdata = ComponentData("default", clean_description_text(card.description, locale))
+			cdata = ComponentData(text=clean_description_text(card.description, locale))
 		elif c.type == ComponentType.cardSet:
-			# TODO need to rework theme dir here and elsewehre
-			# TODO pass on premium state, taken from input?
-			cdata = ComponentData(None,
-				data={"card": card, "dir": theme, "premium": False, "cardtype": card.type.name.lower()})
-
+			cdata = ComponentData(
+				obj={
+					"card": card,
+					"dir": theme_dir,
+					"premium": premium,
+					"cardtype": card.type.name.lower()
+				}
+			)
+		# render any component matched
 		if cdata:
-			render_component(ctx, c, cdata)
+			render_component(ctx, art_dir, theme_dir, loc_code, c, cdata)
+			rendered_comps += 1
+	# save the image to file if any components have been rendered
+	if rendered_comps > 0:
+		surface.flush()
+		filename = "{}{}.png".format(card.id, PREM_SUFFIX if premium else "")
+		surface.write_to_png(os.path.join(out_dir, filename))
 
-	surface.flush()
-	surface.write_to_png(os.path.join(out_dir, card.id + ".png"))
 
 if __name__ == "__main__":
 	fire.Fire(generate)
