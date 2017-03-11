@@ -54,7 +54,6 @@ def draw_clip_region(ctx, obj):
 
 
 def render_component(context, component, data):
-	print(component.type)
 	# first check if there is a clipping region
 	if component.clip:
 		# TODO get shape type
@@ -158,7 +157,6 @@ def clean_description_text(text, locale):
 def setup_context(width, height):
 	surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
 	ctx = cairo.Context(surface)
-	#ctx.scale(width, height) # Normalizing the canvas
 	ctx.set_source_rgba(0, 0, 0, 0) # transparent bg
 	ctx.paint()
 	return (ctx, surface)
@@ -167,46 +165,38 @@ def setup_context(width, height):
 OUT_DIR = "./out"
 ART_DIR = "./art"
 DB_XML = "./CardDefs.xml"
+THEME_JSON = "data.json"
 
 def generate(
 		art_dir=ART_DIR, out_dir=OUT_DIR, id=None, locale="enUS",
 		style="default", premium=False, fonts=None, collectible=False,
 		card_set=None):
-
-	options = {
-		"art_dir": art_dir,
-		"out_dir": out_dir,
-		"id": id,
-		"locale": locale_converter(locale),
-		"style": style,
-		"premium": premium,
-		"fonts": fonts,
-		"collectible": collectible,
-		"set": card_set_converter(card_set),
-	}
-
+	print(locals())
+	loc = locale_converter(locale)
 	# load cards
-	cards = load_cards(locale, id, options["set"], collectible)
-	print(options)
+	cards = load_cards(locale, id, card_set_converter(card_set), collectible)
 	print(len(cards))
-
+	print(loc, locale, card_set_converter(card_set))
 	# load theme data
-	#theme_dir = os.path.join("./assets/", style)
-	theme_dir = os.path.join("../hearthforge/styles/", style)
+	theme_dir = os.path.join("../hearthforge/styles/", style) # TODO os.path.join("./assets/", style)
 	if not os.path.isdir(theme_dir):
 		raise FileNotFoundError("Asset dir not found ({})".format(theme_dir))
-	with open(os.path.join(theme_dir, style + ".json")) as f:
+	with open(os.path.join(theme_dir, THEME_JSON)) as f:
 		theme_data = json.load(f)
 	# render cards
 	for c in cards:
-		render(c, theme_data, locale, out_dir)
+		render(c, loc, premium, theme_data, theme_dir, art_dir, out_dir)
 
 
-def locale_converter(locale):
+def locale_converter(locale_str):
 	"""Covnert locale string to hearthstone.enums.Locale."""
-	if locale and len(locale) == 4:
-		return Locale[locale]
-	return Locale.UNKNOWN
+	loc = Locale.UNKNOWN
+	if locale_str and len(locale_str) == 4:
+		try:
+			loc = Locale[locale_str]
+		except KeyError:
+			pass
+	return loc
 
 
 def locale_as_code(locale):
@@ -216,21 +206,24 @@ def locale_as_code(locale):
 
 def card_set_converter(card_set):
 	"""Convert a card set string to a hearthstone.enums.CardSet."""
+	cset = CardSet.INVALID
 	if card_set:
-		# TODO match game string names
-		return CardSet[card_set]
-	return CardSet.INVALID
+		try:
+			cset = CardSet[card_set]
+		except KeyError:
+			pass
+	return cset
 
 
-def load_cards(locale, id, card_set, collectible):
+def load_cards(locale_str, id, card_set, collectible):
 	"""Load card data from XML.
 
-	locale -- the hearthstone.enums.Locale data to load
+	locale_str -- the hearthstone.enums.Locale data to load
 	id -- a card id, takes precedence over set and collectible
 	card_set -- restrict generation to a hearthstone.enums.CardSet
 	collectible -- when True only generate collectible cards
 	"""
-	db, xml = load(card_xml, locale)
+	db, xml = load(card_xml, locale_str)
 	cards = []
 	if id == None:
 		for card in db.values():
@@ -254,12 +247,12 @@ def load_cards(locale, id, card_set, collectible):
 	return cards
 
 
-def render(card, theme_data, locale, out_dir):
+def render(card, locale, premium, theme_data, theme_dir, art_dir, out_dir):
 	card_type = card.type.name.lower()
 	if card_type in theme_data:
 		data = theme_data[card_type]
 	else:
-		print("{} not found".format(card_type))
+		print("'{}' is unsupported in '{}'".format(card_type, theme_data["name"]))
 		return
 
 	components = []
@@ -293,13 +286,13 @@ def render(card, theme_data, locale, out_dir):
 		elif c.type == ComponentType.attack:
 			cdata = ComponentData("default", str(card.atk))
 		elif c.type == ComponentType.race and card.race.visible:
-			cdata = ComponentData("default", get_localized_name(card.race, locale))
+			cdata = ComponentData("default", get_localized_name(card.race, locale.name))
 		elif c.type == ComponentType.portrait:
 			cdata = ComponentData(None, None, card.id + ".png")
 		elif c.type == ComponentType.base:
 			cdata = ComponentData("default")
 		elif c.type == ComponentType.description:
-			cdata = ComponentData("default", clean_description_text(card.description, Locale[locale]))
+			cdata = ComponentData("default", clean_description_text(card.description, locale))
 		elif c.type == ComponentType.cardSet:
 			# TODO need to rework theme dir here and elsewehre
 			# TODO pass on premium state, taken from input?
