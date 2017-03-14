@@ -1,5 +1,7 @@
 __pycache__
 /output
 /fonts
+/assets
+/hsdata
 /.vagrant
 /.cache
