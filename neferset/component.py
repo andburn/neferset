@@ -35,7 +35,6 @@ class Region:
 		return "({}, {}, {}, {})".format(self.x, self.y, self.width, self.height)
 
 
-
 class Shape(Region):
 	def __init__(self, type, x, y, width, height):
 		super().__init__(x, y, width, height)

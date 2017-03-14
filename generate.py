@@ -6,7 +6,6 @@ import re
 import json
 import os.path
 from operator import itemgetter, attrgetter
-
 import fire
 import cairo
 from gi.repository import Pango
@@ -15,7 +14,6 @@ from hearthstone.cardxml import load
 from hearthstone.enums import (
 	CardType, CardSet, MultiClassGroup, Locale, get_localized_name
 )
-
 from neferset.curved import CubicBezier, CurvedText, curved_text
 from neferset.drawing import (
 	rectangle, rect_ellipse, draw_png_asset, text, text_block
@@ -166,32 +164,6 @@ def setup_context(width, height):
 	return (ctx, surface)
 
 
-def generate(
-		art_dir=ART_DIR, out_dir=OUT_DIR, id=None, locale="enUS",
-		style="default", premium=False, fonts=None, collectible=False,
-		card_set=None):
-	loc = locale_converter(locale)
-	loc_code = locale_as_code(loc)
-	# load cards
-	cards = load_cards(locale, id, card_set_converter(card_set), collectible)
-	print("Generating {} cards".format(len(cards)))
-	# load theme data, from hearthforge submodule
-	theme_dir = os.path.join(ASSET_DIR, style)
-	if not os.path.isdir(theme_dir):
-		raise FileNotFoundError("Asset dir not found ({})".format(theme_dir))
-	with open(os.path.join(theme_dir, THEME_JSON)) as f:
-		theme_data = json.load(f)
-	# render cards, the standard card first then the premium if required
-	import time
-	st = time.process_time()
-	for c in cards:
-		render(c, loc, loc_code, False, theme_data, theme_dir, art_dir, out_dir)
-		if premium:
-			render(c, loc, loc_code, True, theme_data, theme_dir, art_dir, out_dir)
-	ed = time.process_time()
-	print(ed - st)
-
-
 def locale_converter(locale_str):
 	"""Covnert locale string to hearthstone.enums.Locale."""
 	loc = Locale.UNKNOWN
@@ -324,6 +296,41 @@ def render(card, locale, loc_code, premium, theme_data, theme_dir, art_dir, out_
 		surface.flush()
 		filename = "{}{}.png".format(card.id, PREM_SUFFIX if premium else "")
 		surface.write_to_png(os.path.join(out_dir, filename))
+
+
+def generate(
+		art_dir=ART_DIR, out_dir=OUT_DIR, id=None, locale="enUS",
+		style="default", premium=False, fonts=None, collectible=False,
+		card_set=None):
+	"""Main card generation function that defines options and called by Fire.
+
+	-- art_dir	location of the card artwork files
+	-- out_dir	location to save the generate cards
+	-- id		specify a card id to generate a single card
+	-- locale	the locale the generated cards should be in
+	-- style	the HearthForge style/theme to use
+	-- premium	flag to include premium card images (if supported by theme)
+	-- fonts	override the fonts specified in the theme (TODO implement this)
+	-- collectible	only generate collectible cards
+	-- card_set		generate all cards from a set (currently must be enum names)
+	"""
+	# set locale formats
+	loc = locale_converter(locale)
+	loc_code = locale_as_code(loc)
+	# load cards
+	cards = load_cards(locale, id, card_set_converter(card_set), collectible)
+	print("Generating {} cards".format(len(cards)))
+	# load theme data, from hearthforge submodule
+	theme_dir = os.path.join(ASSET_DIR, style)
+	if not os.path.isdir(theme_dir):
+		raise FileNotFoundError("Asset dir not found ({})".format(theme_dir))
+	with open(os.path.join(theme_dir, THEME_JSON)) as f:
+		theme_data = json.load(f)
+	# render cards, the standard card first then the premium if required
+	for c in cards:
+		render(c, loc, loc_code, False, theme_data, theme_dir, art_dir, out_dir)
+		if premium:
+			render(c, loc, loc_code, True, theme_data, theme_dir, art_dir, out_dir)
 
 
 if __name__ == "__main__":
