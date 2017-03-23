@@ -16,6 +16,7 @@ class ComponentType(Enum):
 	classDecoration = 11
 	base = 12
 	portrait = 13
+	extra = 14
 
 
 class ShapeType(Enum):

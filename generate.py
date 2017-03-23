@@ -287,6 +287,8 @@ def render(card, locale, loc_code, premium, theme_data, theme_dir, art_dir, out_
 					"cardtype": card.type.name.lower()
 				}
 			)
+		elif c.type == ComponentType.extra:
+			cdata = ComponentData()
 		# render any component matched
 		if cdata:
 			render_component(ctx, art_dir, theme_dir, loc_code, c, cdata)
