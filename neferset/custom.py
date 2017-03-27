@@ -94,7 +94,7 @@ def set_watermark(ctx, comp, data):
 
 	# get the blending attributes
 	intensity = comp.custom["blendIntensity"]
-	tint = comp.custom["tint"][card_type]
+	tint = comp.custom["tint"]["premium" if is_premium else card_type]
 	tint = Vector4(tint["r"], tint["g"], tint["b"], tint["a"])
 	r0_data = set_img.getdata()
 	r1_data = descp_img.getdata()
