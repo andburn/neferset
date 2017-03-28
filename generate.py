@@ -224,7 +224,10 @@ def load_cards(locale_str, id, card_set, collectible):
 
 
 def render(card, locale, loc_code, premium, theme_data, theme_dir, art_dir, out_dir):
-	card_type = card.type.name.lower()
+	if card.type == CardType.ENCHANTMENT:
+		card_type = "spell"
+	else:
+		card_type = card.type.name.lower()
 	if premium:
 		card_type += PREM_SUFFIX
 	if card_type in theme_data:
@@ -284,7 +287,7 @@ def render(card, locale, loc_code, premium, theme_data, theme_dir, art_dir, out_
 					"card": card,
 					"dir": theme_dir,
 					"premium": premium,
-					"cardtype": card.type.name.lower()
+					"cardtype": card_type
 				}
 			)
 		elif c.type == ComponentType.extra:
