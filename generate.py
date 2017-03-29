@@ -209,10 +209,11 @@ def load_cards(locale_str, id, card_set, collectible):
 					include = True
 				else:
 					include = False
-			if card_set == card.card_set:
-				include = include and True
-			else:
-				include = include and False
+			if card_set:
+				if card_set == card.card_set:
+					include = include and True
+				else:
+					include = include and False
 			if include:
 				cards.append(card)
 	elif id in db:
