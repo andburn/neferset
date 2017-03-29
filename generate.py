@@ -32,16 +32,6 @@ THEME_JSON = "data.json"
 PREM_SUFFIX = "_premium"
 
 
-def as_shape(obj):
-	if "type" in obj:
-		if obj["type"] == "curve":
-			return CubicBezier()
-		else:
-			return Shape(obj["type"], obj["x"], obj["y"], obj["width"], obj["height"])
-	else:
-		return obj
-
-
 def draw_clip_region(ctx, obj):
 	if obj.type == ShapeType.ellipse:
 		rect_ellipse(ctx, obj.x, obj.y, obj.width, obj.height, False, 0.01)
