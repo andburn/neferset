@@ -16,7 +16,7 @@ from hearthstone.enums import (
 )
 from neferset.curved import CubicBezier, CurvedText, curved_text
 from neferset.drawing import (
-	rectangle, rect_ellipse, draw_png_asset, text, text_block
+	rectangle, rect_ellipse, draw_png_asset, text, text_block, polygon
 )
 import neferset.custom
 from neferset.component import (
@@ -33,13 +33,7 @@ PREM_SUFFIX = "_premium"
 
 
 def draw_clip_region(ctx, obj):
-	if obj.type == ShapeType.ellipse:
-		rect_ellipse(ctx, obj.x, obj.y, obj.width, obj.height, False, 0.01)
-	elif obj.type == ShapeType.rectangle:
-		rectangle(ctx, obj.x, obj.y, obj.width, obj.height, False, 0.01)
-	else:
-		raise ValueError("Unable to use a {} as a clipping region.".format(obj.type.name))
-
+	polygon(ctx, obj.points, False, 0.01)
 
 
 def render_component(context, art_dir, theme_dir, loc_code, component, data):

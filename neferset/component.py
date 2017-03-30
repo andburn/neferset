@@ -23,6 +23,7 @@ class ShapeType(Enum):
 	rectangle = 1
 	ellipse = 2
 	curve = 3
+	polygon = 4
 
 
 class Region:
@@ -77,13 +78,9 @@ class Font:
 		return [int(x, 16) / 255 for x in values]
 
 
-class Clip(Region):
+class Clip:
 	def __init__(self, data):
-		self.x = data["x"]
-		self.y = data["y"]
-		self.width = data["width"]
-		self.height = data["height"]
-		self.type = ShapeType[data["type"]]
+		self.points = data["points"]
 
 
 # TODO use geometry point instead?
@@ -114,7 +111,7 @@ class Component:
 		self.text = Text(txt) if txt else None
 		img = data.get("image")
 		self.image = Image(img) if img else None
-		clp = data.get("clipRegion")
+		clp = data.get("clip")
 		self.clip = Clip(clp) if clp else None
 		crv = data.get("textCurve")
 		self.curve = Curve(crv) if crv else None

@@ -156,6 +156,20 @@ def rectangle(ctx, x, y, width, height, draw=True, stroke=0.5, color=(0, 0, 0)):
 	ctx.restore()
 
 
+def polygon(ctx, points, draw=True, stroke=0.5, color=(0, 0, 0)):
+	if len(points) <= 0:
+		return
+	ctx.save()
+	start = points[0]
+	ctx.move_to(start["x"], start["y"])
+	for i in range(1, len(points)):
+		ctx.line_to(points[i]["x"], points[i]["y"])
+	ctx.line_to(start["x"], start["y"])
+	ctx.set_source_rgb(*color)
+	ctx.set_line_width(stroke)
+	ctx.restore()
+
+
 def text(ctx, obj, text, font, lang="en-US", debug=False):
 	ctx.save()
 
