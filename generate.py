@@ -36,6 +36,14 @@ def draw_clip_region(ctx, obj):
 	polygon(ctx, obj.points, False, 0.01)
 
 
+def text_case(case, text):
+	if case == "upper":
+		return text.upper()
+	elif case == "lower":
+		return text.lower()
+	return text
+
+
 def render_component(context, art_dir, theme_dir, loc_code, component, data):
 	clipped = False
 	# first check if there is a clipping region
@@ -56,6 +64,8 @@ def render_component(context, art_dir, theme_dir, loc_code, component, data):
 			clipped = False
 	# draw text
 	if component.text and component.font and data.text:
+		if component.font.case:
+			data.text = text_case(component.font.case, data.text)
 		if component.font.type == "textBlock":
 			text_block(context, component.text, data.text, component.font, loc_code)
 		else:
@@ -221,16 +231,17 @@ def render(card, locale, loc_code, premium, theme_data, theme_dir, art_dir, out_
 		print("{} : '{}' is unsupported in '{}' theme".format(
 			card.id, card_type, theme_data["name"]))
 		return
-	# sort the components by the layer attribute
+	# get all the components and sort by the layer attribute
 	components = []
-	for ct in ComponentType:
-		obj = data.get(ct.name)
-		if obj:
-			cp = Component(data[ct.name], ct)
-			components.append(cp)
+	for k, v in data.items():
+		try:
+			ctype = ComponentType[k]
+		except KeyError:
+			ctype = ComponentType.unknown
+		components.append(Component(v, ctype))
 	components.sort(key=attrgetter("layer"))
 
-	ctx, surface = setup_context(data["width"], data["height"])
+	ctx, surface = setup_context(theme_data["width"], theme_data["height"])
 	rendered_comps = 0
 
 	for c in components:
@@ -275,7 +286,7 @@ def render(card, locale, loc_code, premium, theme_data, theme_dir, art_dir, out_
 					"cardtype": card_type
 				}
 			)
-		elif c.type == ComponentType.extra:
+		elif c.type == ComponentType.unknown:
 			cdata = ComponentData()
 		# render any component matched
 		if cdata:

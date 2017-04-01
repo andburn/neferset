@@ -16,7 +16,7 @@ class ComponentType(Enum):
 	classDecoration = 11
 	base = 12
 	portrait = 13
-	extra = 14
+	unknown = 14
 
 
 class ShapeType(Enum):
@@ -67,6 +67,7 @@ class Font:
 		self.family = data.get("family")
 		self.size = data.get("size")
 		self.outline = self._get_color(data.get("outline"))
+		self.case = data.get("case")
 
 	def _get_color(self, hex_color):
 		if not hex_color:
