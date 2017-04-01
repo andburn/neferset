@@ -99,10 +99,12 @@ class CubicBezier:
 
 
 class CurvedText:
-	def __init__(self, bezier, font, size, text):
+	def __init__(self, bezier, font, text):
 		self.curve = bezier
-		self.font = font
-		self.size = size
+		self.font = font.family
+		self.size = font.size
+		self.outline = font.outline
+		self.color = font.color
 		self.text = text
 
 	def draw_curve(self, context):
@@ -159,12 +161,13 @@ class CurvedText:
 			elif ptype == cairo.PATH_CLOSE_PATH:
 				context.close_path()
 
-		context.set_source_rgb(0, 0, 0)
-		context.set_line_cap(cairo.LINE_CAP_ROUND)
-		context.set_line_join(cairo.LINE_JOIN_ROUND)
-		context.set_line_width(6)
-		context.stroke_preserve()
-		context.set_source_rgb(1, 1, 1)
+		if self.outline:
+			context.set_source_rgb(*self.outline)
+			context.set_line_cap(cairo.LINE_CAP_ROUND)
+			context.set_line_join(cairo.LINE_JOIN_ROUND)
+			context.set_line_width(6)
+			context.stroke_preserve()
+		context.set_source_rgb(*self.color)
 		context.fill()
 		context.restore()
 
@@ -230,7 +233,7 @@ def curved_text(ctx, obj, text, font, debug=False):
 	curve = CubicBezier(
 		obj.start.x, obj.start.y, obj.c1.x, obj.c1.y,
 		obj.c2.x, obj.c2.y, obj.end.x, obj.end.y)
-	text = CurvedText(curve, font.family, font.size, text)
+	text = CurvedText(curve, font, text)
 	if debug:
 		text.draw_curve(ctx)
 	text.draw(ctx)
