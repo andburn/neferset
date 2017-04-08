@@ -199,10 +199,7 @@ def load_cards(locale_str, ids, card_set, collectible):
 		for card in db.values():
 			include = True
 			if collectible:
-				if card.collectible:
-					include = True
-				else:
-					include = False
+				include = True if card.collectible else False
 			if card_set:
 				if card_set == card.card_set:
 					include = include and True
@@ -273,7 +270,7 @@ def render(card, locale, loc_code, premium, theme_data, theme_dir, art_dir, out_
 				and card.multi_class_group != MultiClassGroup.INVALID):
 			cdata = ComponentData(card.multi_class_group.name.lower())
 		elif c.type == ComponentType.classDecoration:
-			cdata = ComponentData(card_class)
+			cdata = ComponentData(card_class, card_class)
 		elif c.type == ComponentType.cost:
 			cdata = ComponentData(text=str(card.cost))
 		elif c.type == ComponentType.health:
@@ -329,11 +326,13 @@ def generate(
 	-- collectible	only generate collectible cards
 	-- card_set		generate all cards from a set (currently must be enum names)
 	"""
+	import time
+	start = time.perf_counter()
 	# set locale formats
 	loc = locale_converter(locale)
 	loc_code = locale_as_code(loc)
 	# load cards
-	filtered = str(only).split(",") if only else []
+	filtered = only if isinstance(only, tuple) else [only]
 	cards = load_cards(locale, filtered, card_set_converter(card_set), collectible)
 	print("Generating {} cards".format(len(cards)))
 	# load theme data, from hearthforge submodule
@@ -349,6 +348,7 @@ def generate(
 		render(c, loc, loc_code, False, theme_data, theme_dir, art_dir, out_dir, font_map)
 		if premium:
 			render(c, loc, loc_code, True, theme_data, theme_dir, art_dir, out_dir, font_map)
+	print("Time: {}s".format(time.perf_counter() - start))
 
 
 if __name__ == "__main__":
