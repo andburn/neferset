@@ -171,7 +171,7 @@ def set_rarity_svg(ctx, comp, data):
 	if card.rarity in colors:
 		SET_SVGS[set_name].getroot().attrib["fill"] = colors[card.rarity]
 	else:
-		print("{}, no color found for rarity {}".format(card.id, card.rarity))
+		print("{}, no color found for rarity {}".format(card.id, card.rarity.name))
 		return
 
 	ctx.save()

@@ -12,7 +12,7 @@ from gi.repository import Pango
 from gi.repository import PangoCairo
 from hearthstone.cardxml import load
 from hearthstone.enums import (
-	CardType, CardSet, MultiClassGroup, Locale, get_localized_name
+	CardType, CardSet, CardClass, MultiClassGroup, Locale, get_localized_name
 )
 from neferset.curved import CubicBezier, CurvedText, curved_text
 from neferset.drawing import (
@@ -219,13 +219,24 @@ def load_cards(locale_str, ids, card_set, collectible):
 	return cards
 
 
-def render(card, locale, loc_code, premium, theme_data, theme_dir, art_dir, out_dir):
+def fix_card_props(card, premium):
 	if card.type == CardType.ENCHANTMENT:
 		card_type = "spell"
 	else:
 		card_type = card.type.name.lower()
+	# add suffix to card type if premium is required
 	if premium:
 		card_type += PREM_SUFFIX
+	# treat dream class as Hunter
+	if card.card_class == CardClass.DREAM:
+		card_class = "hunter"
+	else:
+		card_class = card.card_class.name.lower()
+	return (card_type, card_class)
+
+
+def render(card, locale, loc_code, premium, theme_data, theme_dir, art_dir, out_dir):
+	card_type, card_class = fix_card_props(card, premium)
 	if card_type in theme_data:
 		data = theme_data[card_type]
 	else:
@@ -262,7 +273,7 @@ def render(card, locale, loc_code, premium, theme_data, theme_dir, art_dir, out_
 				and card.multi_class_group != MultiClassGroup.INVALID):
 			cdata = ComponentData(card.multi_class_group.name.lower())
 		elif c.type == ComponentType.classDecoration:
-			cdata = ComponentData(card.card_class.name.lower())
+			cdata = ComponentData(card_class)
 		elif c.type == ComponentType.cost:
 			cdata = ComponentData(text=str(card.cost))
 		elif c.type == ComponentType.health:
@@ -322,7 +333,8 @@ def generate(
 	loc = locale_converter(locale)
 	loc_code = locale_as_code(loc)
 	# load cards
-	cards = load_cards(locale, only, card_set_converter(card_set), collectible)
+	filtered = str(only).split(",") if only else []
+	cards = load_cards(locale, filtered, card_set_converter(card_set), collectible)
 	print("Generating {} cards".format(len(cards)))
 	# load theme data, from hearthforge submodule
 	theme_dir = os.path.join(ASSET_DIR, style)
