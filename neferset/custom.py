@@ -3,6 +3,7 @@ import os.path
 from .component import Image, Region
 from .geometry import Vector4
 from .drawing import draw_png_at
+from hearthstone.enums import Rarity, CardSet, Race
 
 
 def rgb_to_bytes(color):
@@ -18,22 +19,24 @@ def rgb_from_bytes(color):
 def set_watermark(ctx, comp, data):
 	"""Create the set watermark that appears on regular Hearthstone cards."""
 	from PIL import Image as ImagePIL
-	from hearthstone import enums
 
 	cache_dir = ".cache" # store generated images here for reuse
 	file_ext = ".png" # set icon file extension
 
 	card = data["card"]
 	theme_dir = data["dir"]
-	has_race = card.race != enums.Race.INVALID
+	has_race = card.race != Race.INVALID
 	is_premium = data["premium"]
 	card_type = data["cardtype"]
 	race_offset = comp.custom["raceOffset"] # in respect to y coordinate only
 
-	# do nothing for non-craftable sets
-	if not card.card_set.craftable:
-		return
+	# check the icon exists for this set
 	set_name = card.card_set.name.lower()
+	set_icon_path = os.path.join(theme_dir,
+		comp.custom["setIcons"], "{}{}".format(set_name, file_ext))
+	if not os.path.isfile(set_icon_path):
+		print("Warning: set icon missing for {}".format(set_name))
+		return
 
 	if not os.path.isdir(cache_dir):
 		os.makedir(cache_dir)
@@ -73,12 +76,6 @@ def set_watermark(ctx, comp, data):
 	if has_race:
 		offset["y"] += race_offset
 
-	# check the icon exists for this set
-	set_icon_path = os.path.join(theme_dir, comp.custom["setIcons"], "{}{}".format(set_name, file_ext))
-	if not os.path.isfile(set_icon_path):
-		print("ERROR: set icon missing for {}".format(set_name))
-		return
-
 	# resize the set icon to the correct size
 	set_org = ImagePIL.open(set_icon_path)
 	set_resize = set_org.resize((set_region.width, set_region.height), ImagePIL.BILINEAR)
@@ -90,7 +87,7 @@ def set_watermark(ctx, comp, data):
 	set_resize.close()
 
 	# open the base image
-	descp_img = ImagePIL.open(os.path.join(theme_dir, base_image.assets["default"]))
+	descp_img = ImagePIL.open(os.path.join(theme_dir, base_image.assets["base"]))
 
 	# get the blending attributes
 	intensity = comp.custom["blendIntensity"]

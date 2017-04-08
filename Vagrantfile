@@ -4,6 +4,7 @@
 Vagrant.configure("2") do |config|
 	config.vm.box = "bento/debian-8.7"
 	config.vm.hostname = "neferset"
+	config.vm.synced_folder "#{ENV['CARD_DATA']}", "/CardData"
 	config.vm.synced_folder ".", "/neferset"
 
 	config.vm.provision "shell", inline: <<-SYSTEM

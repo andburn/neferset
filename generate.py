@@ -255,6 +255,8 @@ def render(card, locale, loc_code, premium, theme_data, theme_dir, art_dir, out_
 				and card.rarity.craftable
 				and card.card_set != CardSet.CORE):
 			cdata = ComponentData(card.rarity.name.lower())
+		elif (c.type == ComponentType.cardSet and card.card_set != CardSet.CORE):
+			cdata = ComponentData(card.card_set.name.lower())
 		elif (c.type == ComponentType.multiClass
 				and card.multi_class_group != MultiClassGroup.INVALID):
 			cdata = ComponentData(card.multi_class_group.name.lower())
@@ -277,7 +279,7 @@ def render(card, locale, loc_code, premium, theme_data, theme_dir, art_dir, out_
 			cdata = ComponentData()
 		elif c.type == ComponentType.description:
 			cdata = ComponentData(text=clean_description_text(card.description, locale))
-		elif c.type == ComponentType.cardSet:
+		elif c.type == ComponentType.custom:
 			cdata = ComponentData(
 				obj={
 					"card": card,
