@@ -69,6 +69,7 @@ class Font:
 		self.size = data.get("size")
 		self.outline = self._get_color(data.get("outline"))
 		self.case = data.get("case")
+		self.replace = data.get("replace")
 
 	def _get_color(self, hex_color):
 		if not hex_color:
@@ -107,7 +108,7 @@ class Curve:
 
 
 class Component:
-	def __init__(self, data, type):
+	def __init__(self, data, type, font_map=None):
 		self.layer = data["layer"]
 		txt = data.get("text")
 		self.text = Text(txt) if txt else None
@@ -119,6 +120,8 @@ class Component:
 		self.curve = Curve(crv) if crv else None
 		fnt = data.get("font")
 		self.font = Font(fnt) if fnt else None
+		if font_map and self.font and self.font.family in font_map:
+			self.font.replace = font_map[self.font.family]
 		self.custom = data.get("custom")
 		self.type = type
 

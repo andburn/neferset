@@ -180,7 +180,8 @@ def text(ctx, obj, text, font, lang="en-US", debug=False):
 	fo = cairo.FontOptions()
 	fo.set_antialias(cairo.ANTIALIAS_SUBPIXEL)
 	PangoCairo.context_set_font_options(pg_ctx, fo)
-	pg_font = Pango.FontDescription("{} {}px".format(font.family, font.size))
+	font_family = font.family if not font.replace else font.replace
+	pg_font = Pango.FontDescription("{} {}px".format(font_family, font.size))
 	lyt.set_font_description(pg_font)
 	lyt.set_text(text, -1) # force length calculation
 
@@ -252,7 +253,8 @@ def text_block(ctx, obj, text, font, lang="en-US", debug=False):
 	fo = cairo.FontOptions()
 	fo.set_antialias(cairo.ANTIALIAS_SUBPIXEL)
 	PangoCairo.context_set_font_options(pg_ctx, fo)
-	pg_font = Pango.FontDescription("{} {}px".format(font.family, font.size))
+	font_family = font.family if not font.replace else font.replace
+	pg_font = Pango.FontDescription("{} {}px".format(font_family, font.size))
 	lyt.set_font_description(pg_font)
 	lyt.set_markup(text, -1) # force length calculation
 

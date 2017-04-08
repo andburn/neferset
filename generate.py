@@ -235,7 +235,7 @@ def fix_card_props(card, premium):
 	return (card_type, card_class)
 
 
-def render(card, locale, loc_code, premium, theme_data, theme_dir, art_dir, out_dir):
+def render(card, locale, loc_code, premium, theme_data, theme_dir, art_dir, out_dir, font_map):
 	card_type, card_class = fix_card_props(card, premium)
 	if card_type in theme_data:
 		data = theme_data[card_type]
@@ -250,7 +250,7 @@ def render(card, locale, loc_code, premium, theme_data, theme_dir, art_dir, out_
 			ctype = ComponentType[k]
 		except KeyError:
 			ctype = ComponentType.unknown
-		components.append(Component(v, ctype))
+		components.append(Component(v, ctype, font_map))
 	components.sort(key=attrgetter("layer"))
 
 	ctx, surface = setup_context(theme_data["width"], theme_data["height"])
@@ -325,7 +325,7 @@ def generate(
 	-- locale	the locale the generated cards should be in
 	-- style	the HearthForge style/theme to use
 	-- premium	flag to include premium card images (if supported by theme)
-	-- fonts	override the fonts specified in the theme (TODO implement this)
+	-- fonts	override the fonts, semi-colon separated 'old=new' pairs
 	-- collectible	only generate collectible cards
 	-- card_set		generate all cards from a set (currently must be enum names)
 	"""
@@ -342,11 +342,13 @@ def generate(
 		raise FileNotFoundError("Asset dir not found ({})".format(theme_dir))
 	with open(os.path.join(theme_dir, THEME_JSON)) as f:
 		theme_data = json.load(f)
+	# create a font replacer map ( e.g. "Arial=Times;OpenSans=Roboto")
+	font_map = dict(f.split("=") for f in fonts.split(";")) if fonts else None
 	# render cards, the standard card first then the premium if required
 	for c in cards:
-		render(c, loc, loc_code, False, theme_data, theme_dir, art_dir, out_dir)
+		render(c, loc, loc_code, False, theme_data, theme_dir, art_dir, out_dir, font_map)
 		if premium:
-			render(c, loc, loc_code, True, theme_data, theme_dir, art_dir, out_dir)
+			render(c, loc, loc_code, True, theme_data, theme_dir, art_dir, out_dir, font_map)
 
 
 if __name__ == "__main__":

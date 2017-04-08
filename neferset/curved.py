@@ -101,7 +101,7 @@ class CubicBezier:
 class CurvedText:
 	def __init__(self, bezier, font, text):
 		self.curve = bezier
-		self.font = font.family
+		self.font = font.replace if font.replace else font.family
 		self.size = font.size
 		self.outline = font.outline
 		self.color = font.color
