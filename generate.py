@@ -185,17 +185,17 @@ def card_set_converter(card_set):
 	return cset
 
 
-def load_cards(locale_str, id, card_set, collectible):
+def load_cards(locale_str, ids, card_set, collectible):
 	"""Load card data from XML.
 
 	locale_str -- the hearthstone.enums.Locale data to load
-	id -- a card id, takes precedence over set and collectible
+	ids -- a list of card ids, takes precedence over set and collectible
 	card_set -- restrict generation to a hearthstone.enums.CardSet
 	collectible -- when True only generate collectible cards
 	"""
 	db, xml = load(DB_XML, locale_str)
 	cards = []
-	if id == None:
+	if ids == None:
 		for card in db.values():
 			include = True
 			if collectible:
@@ -210,11 +210,12 @@ def load_cards(locale_str, id, card_set, collectible):
 					include = include and False
 			if include:
 				cards.append(card)
-	elif id in db:
-		cards.append(db[id])
 	else:
-		raise ValueError("Unknown card id {}".format(id))
-
+		for id in ids:
+			if id in db:
+				cards.append(db[id])
+			else:
+				print("Unknown card id {}, Skipping".format(id))
 	return cards
 
 
@@ -255,7 +256,7 @@ def render(card, locale, loc_code, premium, theme_data, theme_dir, art_dir, out_
 				and card.rarity.craftable
 				and card.card_set != CardSet.CORE):
 			cdata = ComponentData(card.rarity.name.lower())
-		elif (c.type == ComponentType.cardSet and card.card_set != CardSet.CORE):
+		elif (c.type == ComponentType.cardSet):
 			cdata = ComponentData(card.card_set.name.lower())
 		elif (c.type == ComponentType.multiClass
 				and card.multi_class_group != MultiClassGroup.INVALID):
@@ -302,14 +303,14 @@ def render(card, locale, loc_code, premium, theme_data, theme_dir, art_dir, out_
 
 
 def generate(
-		art_dir=ART_DIR, out_dir=OUT_DIR, id=None, locale="enUS",
+		art_dir=ART_DIR, out_dir=OUT_DIR, only=None, locale="enUS",
 		style="default", premium=False, fonts=None, collectible=False,
 		card_set=None):
 	"""Main card generation function that defines options and called by Fire.
 
 	-- art_dir	location of the card artwork files
 	-- out_dir	location to save the generate cards
-	-- id		specify a card id to generate a single card
+	-- only		specify a single card id or comma separated list of ids
 	-- locale	the locale the generated cards should be in
 	-- style	the HearthForge style/theme to use
 	-- premium	flag to include premium card images (if supported by theme)
@@ -321,7 +322,7 @@ def generate(
 	loc = locale_converter(locale)
 	loc_code = locale_as_code(loc)
 	# load cards
-	cards = load_cards(locale, id, card_set_converter(card_set), collectible)
+	cards = load_cards(locale, only, card_set_converter(card_set), collectible)
 	print("Generating {} cards".format(len(cards)))
 	# load theme data, from hearthforge submodule
 	theme_dir = os.path.join(ASSET_DIR, style)

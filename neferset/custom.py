@@ -30,13 +30,10 @@ def set_watermark(ctx, comp, data):
 	card_type = data["cardtype"]
 	race_offset = comp.custom["raceOffset"] # in respect to y coordinate only
 
-	# check the icon exists for this set
-	set_name = card.card_set.name.lower()
-	set_icon_path = os.path.join(theme_dir,
-		comp.custom["setIcons"], "{}{}".format(set_name, file_ext))
-	if not os.path.isfile(set_icon_path):
-		print("Warning: set icon missing for {}".format(set_name))
+	# ignore the core set
+	if card.card_set == CardSet.CORE:
 		return
+	set_name = card.card_set.name.lower()
 
 	if not os.path.isdir(cache_dir):
 		os.makedir(cache_dir)
@@ -65,6 +62,13 @@ def set_watermark(ctx, comp, data):
 		draw_png_at(
 			ctx, image_path, base_image.x, base_image.y, base_image.width,
 			base_image.height)
+		return
+
+	# check the set icon exists
+	set_icon_path = os.path.join(theme_dir,
+		comp.custom["setIcons"], "{}{}".format(set_name, file_ext))
+	if not os.path.isfile(set_icon_path):
+		print("Warning: set icon missing for '{}'".format(set_name))
 		return
 
 	# calc set offset within base
