@@ -8,6 +8,11 @@ import os.path
 from operator import itemgetter, attrgetter
 import fire
 import cairo
+import gi
+
+gi.require_version("Pango", "1.0")
+gi.require_version("PangoCairo", "1.0")
+
 from gi.repository import Pango
 from gi.repository import PangoCairo
 from hearthstone.cardxml import load
@@ -30,6 +35,7 @@ ASSET_DIR = "./assets/styles"
 DB_XML = "./hsdata/CardDefs.xml"
 THEME_JSON = "data.json"
 PREM_SUFFIX = "_premium"
+MIN_WIDTH = 128
 
 
 def draw_clip_region(ctx, obj):
@@ -150,9 +156,14 @@ def clean_description_text(text, locale):
 	return text
 
 
-def setup_context(width, height):
-	surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
+def setup_context(width, height, out_width=0):
+	scale = 1
+	if out_width >= MIN_WIDTH:
+		scale = out_width / width
+	surface = cairo.ImageSurface(
+		cairo.FORMAT_ARGB32, int(round(width * scale)), int(round(height * scale)))
 	ctx = cairo.Context(surface)
+	ctx.scale(scale, scale)
 	ctx.set_source_rgba(0, 0, 0, 0) # transparent bg
 	ctx.paint()
 	return (ctx, surface)
@@ -232,7 +243,7 @@ def fix_card_props(card, premium):
 	return (card_type, card_class)
 
 
-def render(card, locale, loc_code, premium, theme_data, theme_dir, art_dir, out_dir, font_map):
+def render(card, locale, loc_code, premium, theme_data, theme_dir, art_dir, out_dir, font_map, width):
 	card_type, card_class = fix_card_props(card, premium)
 	if card_type in theme_data:
 		data = theme_data[card_type]
@@ -250,7 +261,7 @@ def render(card, locale, loc_code, premium, theme_data, theme_dir, art_dir, out_
 		components.append(Component(v, ctype, font_map))
 	components.sort(key=attrgetter("layer"))
 
-	ctx, surface = setup_context(theme_data["width"], theme_data["height"])
+	ctx, surface = setup_context(theme_data["width"], theme_data["height"], width)
 	rendered_comps = 0
 
 	for c in components:
@@ -313,7 +324,7 @@ def render(card, locale, loc_code, premium, theme_data, theme_dir, art_dir, out_
 def generate(
 		art_dir=ART_DIR, out_dir=OUT_DIR, only=None, locale="enUS",
 		style="default", premium=False, fonts=None, collectible=False,
-		card_set=None):
+		card_set=None, width=0):
 	"""Main card generation function that defines options and called by Fire.
 
 	-- art_dir	location of the card artwork files
@@ -325,6 +336,7 @@ def generate(
 	-- fonts	override the fonts, semi-colon separated 'old=new' pairs
 	-- collectible	only generate collectible cards
 	-- card_set		generate all cards from a set (currently must be enum names)
+	-- width	set the output width of the card image
 	"""
 	import time
 	start = time.perf_counter()
@@ -345,9 +357,9 @@ def generate(
 	font_map = dict(f.split("=") for f in fonts.split(";")) if fonts else None
 	# render cards, the standard card first then the premium if required
 	for c in cards:
-		render(c, loc, loc_code, False, theme_data, theme_dir, art_dir, out_dir, font_map)
+		render(c, loc, loc_code, False, theme_data, theme_dir, art_dir, out_dir, font_map, width)
 		if premium:
-			render(c, loc, loc_code, True, theme_data, theme_dir, art_dir, out_dir, font_map)
+			render(c, loc, loc_code, True, theme_data, theme_dir, art_dir, out_dir, font_map, width)
 	print("Time: {}s".format(time.perf_counter() - start))
 
 
