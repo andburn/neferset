@@ -29,10 +29,6 @@ def set_watermark(ctx, comp, data):
 	is_premium = data["premium"]
 	card_type = data["cardtype"]
 	race_offset = comp.custom["raceOffset"] # in respect to y coordinate only
-
-	# ignore the core set
-	if card.card_set == CardSet.CORE:
-		return
 	set_name = card.card_set.name.lower()
 
 	if not os.path.isdir(cache_dir):
@@ -56,6 +52,13 @@ def set_watermark(ctx, comp, data):
 		comp.custom["region"]["y"],
 		comp.custom["region"]["width"],
 		comp.custom["region"]["height"])
+
+	# no icon for core set, but need description plate
+	if card.card_set == CardSet.CORE:
+		draw_png_at(
+			ctx, os.path.join(theme_dir, base_image.assets["base"]),
+			base_image.x, base_image.y, base_image.width, base_image.height)
+		return
 
 	# if there is a cached version of the image use it
 	if os.path.isfile(image_path):
@@ -133,8 +136,10 @@ def set_watermark(ctx, comp, data):
 SET_SVGS = {}
 
 def set_rarity_svg(ctx, comp, data):
-	from lxml import etree
+	import gi
+	gi.require_version('Rsvg', '2.0')
 	from gi.repository import Rsvg
+	from lxml import etree
 
 	file_ext = ".svg"
 	scale = comp.custom["region"]["width"] / 128;
