@@ -13,7 +13,7 @@ command -v git &>/dev/null || {
 
 fetch_git() {
 	echo "Fetching data files from $1"
-	if [[ ! -e "$2" ]]; then
+	if [[ ! ( -e "$2" && -e "$2/.git" ) ]]; then
 		git clone --depth=1 "$1" "$2"
 	else
 		git -C "$2" fetch &&

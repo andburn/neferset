@@ -11,7 +11,7 @@ Function FetchGit() {
         [string]$dest
     )
 	Write-Host "Fetching data files from $src"
-	if (-not (Test-Path $dest)) {
+	if (-not (Test-Path $dest) -or -not (Test-Path "$dest/.git")) {
 		& git clone --depth=1 "$src" "$dest"
     } else {
 		& git -C "$dest" fetch
